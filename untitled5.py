@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import streamlit as st
 import asyncio
 import edge_tts
@@ -6,22 +5,30 @@ from datetime import datetime
 import requests
 import os
 import base64
-from googletrans import Translator  # Import translator for Hindi translation
+from googletrans import Translator
 
 class StreamlitCropDiseaseAnalyzer:
     def __init__(self):
         # Gemini API Configuration
         self.API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent"
-        self.API_KEY = st.secrets["gemini"]["api_key"]  # Load API key from secrets
+        self.API_KEY = st.secrets["gemini"]["api_key"]
         self.VOICES = {
             'Telugu': 'te-IN-ShrutiNeural',
             'English': 'en-US-AriaNeural',
             'Hindi': 'hi-IN-SwaraNeural'
         }
-        self.CROPS = [
-            "Tomato", "Potato", "Corn", "Rice", "Wheat",
-            "Soybean", "Cotton", "Apple", "Grape", "Cucumber"
-        ]
+        self.CROPS = {
+            "Tomato": "https://example.com/images/tomato.jpg",
+            "Potato": "https://example.com/images/potato.jpg",
+            "Corn": "https://example.com/images/corn.jpg",
+            "Rice": "https://example.com/images/rice.jpg",
+            "Wheat": "https://example.com/images/wheat.jpg",
+            "Soybean": "https://example.com/images/soybean.jpg",
+            "Cotton": "https://example.com/images/cotton.jpg",
+            "Apple": "https://example.com/images/apple.jpg",
+            "Grape": "https://example.com/images/grape.jpg",
+            "Cucumber": "https://example.com/images/cucumber.jpg"
+        }
         self.NPK_REQUIREMENTS = {
             "Tomato": {"N": 120, "P": 80, "K": 100},
             "Potato": {"N": 150, "P": 100, "K": 120},
@@ -38,24 +45,25 @@ class StreamlitCropDiseaseAnalyzer:
             "Kharif": {
                 "Tomato": "Transplant in June, harvest in September.",
                 "Potato": "Sow in June, harvest in September.",
-                # Add other crops and their operations
+                # Add other crops operations
             },
             "Rabi": {
                 "Tomato": "Transplant in December, harvest in March.",
                 "Potato": "Sow in November, harvest in February.",
-                # Add other crops and their operations
+                # Add other crops operations
             }
         }
         self.translator = Translator()
 
-    def query_gemini_api(self, crop):
-        """Query Gemini API for crop disease information"""
+    def query_gemini_api(self, crop, language):
+        """Query Gemini API for crop disease information in specified language"""
         try:
             headers = {
                 "Content-Type": "application/json"
             }
 
-            prompt = f"""
+            # Adjust prompt based on language
+            base_prompt = f"""
             Analyze and provide detailed information about common diseases in {crop} cultivation.
             For each disease, include:
             1. Disease name
@@ -63,14 +71,15 @@ class StreamlitCropDiseaseAnalyzer:
             3. Favorable conditions
             4. Prevention methods
             5. Treatment options
-
+            
+            Provide the response in {language} language.
             Format the response in a clear, structured way.
             """
 
             payload = {
                 "contents": [{
                     "parts": [{
-                        "text": prompt
+                        "text": base_prompt
                     }]
                 }]
             }
@@ -96,7 +105,6 @@ class StreamlitCropDiseaseAnalyzer:
         """Convert text to speech using edge-tts"""
         voice = self.VOICES[language]
         try:
-            # Remove hashtags and unwanted characters from text
             clean_text = " ".join(word for word in text.split() if not word.startswith("#"))
             communicate = edge_tts.Communicate(clean_text, voice)
             await communicate.save(output_file)
@@ -113,11 +121,23 @@ class StreamlitCropDiseaseAnalyzer:
         return self.MONTH_SPECIFIC_OPERATIONS.get(season, {}).get(crop, "No operations available.")
 
     def translate_text(self, text, target_language):
-        """Translate text to the target language using googletrans"""
-        if target_language == 'Hindi':
-            translation = self.translator.translate(text, src='en', dest='hi')
+        """Translate text to the target language"""
+        if target_language != 'English':
+            lang_code = 'hi' if target_language == 'Hindi' else 'te'
+            translation = self.translator.translate(text, src='en', dest=lang_code)
             return translation.text
         return text
+
+def display_crop_image(url, crop_name):
+    """Display crop image with name"""
+    st.image(url, caption=crop_name, use_column_width=True)
+
+def create_crop_grid(crops_dict):
+    """Create a responsive grid of crop images"""
+    cols = st.columns(3)
+    for idx, (crop, image_url) in enumerate(crops_dict.items()):
+        with cols[idx % 3]:
+            display_crop_image(image_url, crop)
 
 def get_binary_file_downloader_html(bin_file, file_label='File'):
     with open(bin_file, 'rb') as f:
@@ -138,61 +158,67 @@ def main():
 
     analyzer = StreamlitCropDiseaseAnalyzer()
 
-    # Step 1: Language selection
-    selected_language = st.selectbox("Select Language", list(analyzer.VOICES.keys()))
+    # Create three columns for dropdowns
+    col1, col2, col3 = st.columns(3)
 
-    # Step 2: Crop selection
-    selected_crop = st.selectbox("Select Crop", analyzer.CROPS)
+    with col1:
+        selected_language = st.selectbox("Select Language", list(analyzer.VOICES.keys()))
+    with col2:
+        selected_crop = st.selectbox("Select Crop", list(analyzer.CROPS.keys()))
+    with col3:
+        selected_season = st.selectbox("Select Season", ["Kharif", "Rabi"])
 
-    # Step 3: Season selection
-    selected_season = st.selectbox("Select Season", ["Kharif", "Rabi"])
+    # Display crop images in a grid
+    st.subheader("Available Crops")
+    create_crop_grid(analyzer.CROPS)
 
-    if selected_crop:
-        st.markdown(f"## Analysis for {selected_crop}")
+    # Add an "Analyze" button
+    if st.button("Analyze Crop"):
+        if selected_crop and selected_language and selected_season:
+            st.markdown(f"## Analysis for {selected_crop}")
 
-        # Display NPK requirements
-        npk = analyzer.get_npk_requirements(selected_crop)
-        st.markdown(f"### NPK Requirements per acre (in kg):")
-        st.markdown(f"**Nitrogen (N):** {npk['N']} kg, **Phosphorus (P):** {npk['P']} kg, **Potassium (K):** {npk['K']} kg")
+            # Display NPK requirements
+            npk = analyzer.get_npk_requirements(selected_crop)
+            npk_text = f"### NPK Requirements per acre (in kg):\n**Nitrogen (N):** {npk['N']} kg, **Phosphorus (P):** {npk['P']} kg, **Potassium (K):** {npk['K']} kg"
+            translated_npk = analyzer.translate_text(npk_text, selected_language)
+            st.markdown(translated_npk)
 
-        # Display month-specific operations
-        operations = analyzer.get_month_specific_operations(selected_crop, selected_season)
-        st.markdown(f"### Month-specific Operations:")
-        st.markdown(operations)
+            # Display month-specific operations
+            operations = analyzer.get_month_specific_operations(selected_crop, selected_season)
+            operations_text = f"### Month-specific Operations:\n{operations}"
+            translated_operations = analyzer.translate_text(operations_text, selected_language)
+            st.markdown(translated_operations)
 
-        # Create a spinner while analyzing
-        with st.spinner(f'Analyzing diseases for {selected_crop} in {selected_language}...'):
-            # Get disease information
-            analysis_text = analyzer.query_gemini_api(selected_crop)
+            # Create a spinner while analyzing
+            with st.spinner(f'Analyzing diseases for {selected_crop} in {selected_language}...'):
+                # Get disease information in selected language
+                analysis_text = analyzer.query_gemini_api(selected_crop, selected_language)
 
-            if "Error:" in analysis_text:
-                st.error(analysis_text)
-            else:
-                # Translate the analysis text if Hindi is selected
-                analysis_text = analyzer.translate_text(analysis_text, selected_language)
+                if "Error:" in analysis_text:
+                    st.error(analysis_text)
+                else:
+                    # Display analysis text
+                    st.markdown(analysis_text)
 
-                # Display analysis text
-                st.markdown(analysis_text)
+                    # Generate audio file
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    audio_file = f"crop_disease_analysis_{selected_crop.lower()}_{timestamp}.mp3"
 
-                # Generate audio file
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                audio_file = f"crop_disease_analysis_{selected_crop.lower()}_{timestamp}.mp3"
+                    with st.spinner('Generating audio...'):
+                        asyncio.run(analyzer.text_to_speech(analysis_text, audio_file, selected_language))
 
-                with st.spinner('Generating audio...'):
-                    asyncio.run(analyzer.text_to_speech(analysis_text, audio_file, selected_language))
+                    # Audio player
+                    with open(audio_file, 'rb') as audio_data:
+                        st.audio(audio_data.read(), format='audio/mp3')
 
-                # Audio player
-                with open(audio_file, 'rb') as audio_data:
-                    st.audio(audio_data.read(), format='audio/mp3')
+                    # Download button
+                    st.markdown(get_binary_file_downloader_html(audio_file, 'Audio Summary'), unsafe_allow_html=True)
 
-                # Download button
-                st.markdown(get_binary_file_downloader_html(audio_file, 'Audio Summary'), unsafe_allow_html=True)
-
-                # Clean up audio file
-                try:
-                    os.remove(audio_file)
-                except:
-                    pass
+                    # Clean up audio file
+                    try:
+                        os.remove(audio_file)
+                    except:
+                        pass
 
 if __name__ == "__main__":
     main()

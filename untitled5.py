@@ -13,9 +13,8 @@ class StreamlitCropDiseaseAnalyzer:
         self.API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent"
         self.API_KEY = st.secrets["gemini"]["api_key"]  # Load API key from secrets
         self.VOICES = {
-            'Hindi': 'hi-IN-AditiNeural',
+            'Telugu': ' te-IN-ShrutiNeural
             'English': 'en-US-AriaNeural',
-            'Telugu': 'te-IN-SowmyaNeural'
         }
         self.CROPS = [
             "Tomato", "Potato", "Corn", "Rice", "Wheat",

@@ -6,6 +6,7 @@ from datetime import datetime
 import requests
 import os
 import base64
+from googletrans import Translator  # Import translator for Hindi translation
 
 class StreamlitCropDiseaseAnalyzer:
     def __init__(self):
@@ -15,6 +16,7 @@ class StreamlitCropDiseaseAnalyzer:
         self.VOICES = {
             'Telugu': 'te-IN-ShrutiNeural',
             'English': 'en-US-AriaNeural',
+            'Hindi': 'hi-IN-SwaraNeural'
         }
         self.CROPS = [
             "Tomato", "Potato", "Corn", "Rice", "Wheat",
@@ -44,6 +46,7 @@ class StreamlitCropDiseaseAnalyzer:
                 # Add other crops and their operations
             }
         }
+        self.translator = Translator()
 
     def query_gemini_api(self, crop):
         """Query Gemini API for crop disease information"""
@@ -109,6 +112,13 @@ class StreamlitCropDiseaseAnalyzer:
         """Get month-specific operations for the selected crop and season"""
         return self.MONTH_SPECIFIC_OPERATIONS.get(season, {}).get(crop, "No operations available.")
 
+    def translate_text(self, text, target_language):
+        """Translate text to the target language using googletrans"""
+        if target_language == 'Hindi':
+            translation = self.translator.translate(text, src='en', dest='hi')
+            return translation.text
+        return text
+
 def get_binary_file_downloader_html(bin_file, file_label='File'):
     with open(bin_file, 'rb') as f:
         data = f.read()
@@ -124,7 +134,7 @@ def main():
     )
 
     st.title("🌱 Crop Disease Analyzer")
-    st.markdown("Analyze common diseases in crops with NPK requirements and operations, available in Telugu and English.")
+    st.markdown("Analyze common diseases in crops with NPK requirements and operations, available in Telugu, Hindi, and English.")
 
     analyzer = StreamlitCropDiseaseAnalyzer()
 
@@ -158,6 +168,9 @@ def main():
             if "Error:" in analysis_text:
                 st.error(analysis_text)
             else:
+                # Translate the analysis text if Hindi is selected
+                analysis_text = analyzer.translate_text(analysis_text, selected_language)
+
                 # Display analysis text
                 st.markdown(analysis_text)
 

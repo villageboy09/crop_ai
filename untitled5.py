@@ -124,21 +124,17 @@ def main():
     )
 
     st.title("🌱 Crop Disease Analyzer")
-    st.markdown("Select a crop to analyze common diseases and get detailed information including prevention and treatment methods.")
+    st.markdown("Analyze common diseases in crops with NPK requirements and operations, available in Telugu and English.")
 
     analyzer = StreamlitCropDiseaseAnalyzer()
 
-    # Create a grid layout for crop selection using columns
-    cols = st.columns(3)  # 3 columns for the grid
-    selected_crop = None
+    # Step 1: Language selection
+    selected_language = st.selectbox("Select Language", list(analyzer.VOICES.keys()))
 
-    # Create crop selection buttons in a grid
-    for i, crop in enumerate(analyzer.CROPS):
-        col_idx = i % 3
-        with cols[col_idx]:
-            if st.button(crop, key=f"crop_{i}", use_container_width=True):
-                selected_crop = crop
+    # Step 2: Crop selection
+    selected_crop = st.selectbox("Select Crop", analyzer.CROPS)
 
+    # Step 3: Season selection
     selected_season = st.selectbox("Select Season", ["Kharif", "Rabi"])
 
     if selected_crop:
@@ -155,7 +151,7 @@ def main():
         st.markdown(operations)
 
         # Create a spinner while analyzing
-        with st.spinner(f'Analyzing diseases for {selected_crop}...'):
+        with st.spinner(f'Analyzing diseases for {selected_crop} in {selected_language}...'):
             # Get disease information
             analysis_text = analyzer.query_gemini_api(selected_crop)
 
@@ -167,7 +163,6 @@ def main():
 
                 # Generate audio file
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                selected_language = st.selectbox("Select Language", list(analyzer.VOICES.keys()))
                 audio_file = f"crop_disease_analysis_{selected_crop.lower()}_{timestamp}.mp3"
 
                 with st.spinner('Generating audio...'):

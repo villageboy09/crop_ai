@@ -1,0 +1,4 @@
+streamlit==1.21.0
+edge-tts==0.1.8
+requests==2.31.0
+asyncio==3.11.4  # Note: asyncio is included in Python 3.7+

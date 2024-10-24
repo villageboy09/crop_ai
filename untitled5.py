@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import streamlit as st
 import asyncio
 import edge_tts
@@ -11,54 +12,39 @@ class StreamlitCropDiseaseAnalyzer:
         # Gemini API Configuration
         self.API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent"
         self.API_KEY = st.secrets["gemini"]["api_key"]  # Load API key from secrets
-        self.CROPS = {
-            "Tomato": {"NPK": "80-40-40", "operations": self.get_monthly_operations("Tomato")},
-            "Potato": {"NPK": "100-60-80", "operations": self.get_monthly_operations("Potato")},
-            "Corn": {"NPK": "120-60-40", "operations": self.get_monthly_operations("Corn")},
-            "Rice": {"NPK": "100-60-40", "operations": self.get_monthly_operations("Rice")},
-            "Wheat": {"NPK": "100-50-40", "operations": self.get_monthly_operations("Wheat")},
-            "Soybean": {"NPK": "40-20-20", "operations": self.get_monthly_operations("Soybean")},
-            "Cotton": {"NPK": "60-40-40", "operations": self.get_monthly_operations("Cotton")},
-            "Apple": {"NPK": "100-60-40", "operations": self.get_monthly_operations("Apple")},
-            "Grape": {"NPK": "80-40-40", "operations": self.get_monthly_operations("Grape")},
-            "Cucumber": {"NPK": "80-40-40", "operations": self.get_monthly_operations("Cucumber")},
-        }
         self.VOICES = {
-            "English": "en-US-AriaNeural",
-            "Hindi": "hi-IN-AditiNeural",
-            "Telugu": "te-IN-PriyaNeural"
+            'English': 'en-US-AriaNeural',
+            'Hindi': 'hi-IN-AditiNeural',
+            'Telugu': 'te-IN-SowmyaNeural'
         }
-        self.selected_voice = self.VOICES["English"]  # Default voice
-
-    def get_monthly_operations(self, crop):
-        # Define month-specific operations for Kharif and Rabi seasons
-        operations = {
+        self.CROPS = [
+            "Tomato", "Potato", "Corn", "Rice", "Wheat",
+            "Soybean", "Cotton", "Apple", "Grape", "Cucumber"
+        ]
+        self.NPK_REQUIREMENTS = {
+            "Tomato": {"N": 120, "P": 80, "K": 100},
+            "Potato": {"N": 150, "P": 100, "K": 120},
+            "Corn": {"N": 200, "P": 50, "K": 100},
+            "Rice": {"N": 100, "P": 30, "K": 70},
+            "Wheat": {"N": 120, "P": 60, "K": 70},
+            "Soybean": {"N": 40, "P": 20, "K": 30},
+            "Cotton": {"N": 150, "P": 70, "K": 80},
+            "Apple": {"N": 80, "P": 60, "K": 70},
+            "Grape": {"N": 100, "P": 40, "K": 50},
+            "Cucumber": {"N": 90, "P": 40, "K": 60}
+        }
+        self.MONTH_SPECIFIC_OPERATIONS = {
             "Kharif": {
-                "Tomato": "Sow seeds in June-July; apply NPK as needed.",
-                "Potato": "Plant in June; ensure proper irrigation.",
-                "Corn": "Plant in June; apply fertilizers as needed.",
-                "Rice": "Transplant in July; manage water levels.",
-                "Wheat": "Not typically grown in Kharif.",
-                "Soybean": "Sow seeds in June; monitor pests.",
-                "Cotton": "Plant in June; apply insecticides as needed.",
-                "Apple": "Not typically grown in Kharif.",
-                "Grape": "Prune in June; ensure good irrigation.",
-                "Cucumber": "Sow seeds in June; manage pests."
+                "Tomato": "Transplant in June, harvest in September.",
+                "Potato": "Sow in June, harvest in September.",
+                # Add other crops and their operations
             },
             "Rabi": {
-                "Tomato": "Sow seeds in October-November; monitor for diseases.",
-                "Potato": "Plant in October; ensure proper drainage.",
-                "Corn": "Not typically grown in Rabi.",
-                "Rice": "Not typically grown in Rabi.",
-                "Wheat": "Sow seeds in November; apply fertilizers as needed.",
-                "Soybean": "Not typically grown in Rabi.",
-                "Cotton": "Not typically grown in Rabi.",
-                "Apple": "Plant in November; monitor for diseases.",
-                "Grape": "Manage irrigation in winter.",
-                "Cucumber": "Sow seeds in November; monitor for pests."
+                "Tomato": "Transplant in December, harvest in March.",
+                "Potato": "Sow in November, harvest in February.",
+                # Add other crops and their operations
             }
         }
-        return operations
 
     def query_gemini_api(self, crop):
         """Query Gemini API for crop disease information"""
@@ -76,7 +62,7 @@ class StreamlitCropDiseaseAnalyzer:
             4. Prevention methods
             5. Treatment options
 
-            Format the response in a clear, structured way without hashtags.
+            Format the response in a clear, structured way.
             """
 
             payload = {
@@ -88,11 +74,7 @@ class StreamlitCropDiseaseAnalyzer:
             }
 
             url = f"{self.API_URL}?key={self.API_KEY}"
-            response = requests.post(
-                url,
-                headers=headers,
-                json=payload
-            )
+            response = requests.post(url, headers=headers, json=payload)
 
             if response.status_code == 200:
                 return response.json()["candidates"][0]["content"]["parts"][0]["text"]
@@ -108,17 +90,25 @@ class StreamlitCropDiseaseAnalyzer:
         except Exception as e:
             return f"Error querying API: {str(e)}"
 
-    async def text_to_speech(self, text, output_file):
+    async def text_to_speech(self, text, output_file, language):
         """Convert text to speech using edge-tts"""
-        communicate = edge_tts.Communicate(text, self.selected_voice)
-        await communicate.save(output_file)
+        voice = self.VOICES[language]
+        try:
+            # Remove hashtags and unwanted characters from text
+            clean_text = " ".join(word for word in text.split() if not word.startswith("#"))
+            communicate = edge_tts.Communicate(clean_text, voice)
+            await communicate.save(output_file)
+        except Exception as e:
+            st.error(f"Error during TTS conversion: {str(e)}")
+            raise
 
-    def generate_audio(self, text, output_file):
-        """Wrapper function to run text_to_speech"""
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(self.text_to_speech(text, output_file))
-        loop.close()
+    def get_npk_requirements(self, crop):
+        """Get NPK requirements for a specific crop"""
+        return self.NPK_REQUIREMENTS.get(crop, {"N": 0, "P": 0, "K": 0})
+
+    def get_month_specific_operations(self, crop, season):
+        """Get month-specific operations for the selected crop and season"""
+        return self.MONTH_SPECIFIC_OPERATIONS.get(season, {}).get(crop, "No operations available.")
 
 def get_binary_file_downloader_html(bin_file, file_label='File'):
     with open(bin_file, 'rb') as f:
@@ -135,36 +125,35 @@ def main():
     )
 
     st.title("🌱 Crop Disease Analyzer")
-    st.markdown("""Select a crop to analyze common diseases and get detailed information including prevention and treatment methods.""")
+    st.markdown("Select a crop to analyze common diseases and get detailed information including prevention and treatment methods.")
 
     analyzer = StreamlitCropDiseaseAnalyzer()
-
-    # Language selection
-    language = st.selectbox("Select Language for Text-to-Speech:", list(analyzer.VOICES.keys()))
-    analyzer.selected_voice = analyzer.VOICES[language]  # Update selected voice
 
     # Create a grid layout for crop selection using columns
     cols = st.columns(3)  # 3 columns for the grid
     selected_crop = None
 
     # Create crop selection buttons in a grid
-    for i, crop in enumerate(analyzer.CROPS.keys()):
+    for i, crop in enumerate(analyzer.CROPS):
         col_idx = i % 3
         with cols[col_idx]:
             if st.button(crop, key=f"crop_{i}", use_container_width=True):
                 selected_crop = crop
 
+    selected_season = st.selectbox("Select Season", ["Kharif", "Rabi"])
+
     if selected_crop:
         st.markdown(f"## Analysis for {selected_crop}")
 
         # Display NPK requirements
-        npk_requirements = analyzer.CROPS[selected_crop]["NPK"]
-        st.markdown(f"### NPK Requirements per acre: **{npk_requirements} kg**")
+        npk = analyzer.get_npk_requirements(selected_crop)
+        st.markdown(f"### NPK Requirements per acre (in kg):")
+        st.markdown(f"**Nitrogen (N):** {npk['N']} kg, **Phosphorus (P):** {npk['P']} kg, **Potassium (K):** {npk['K']} kg")
 
-        # Season selection
-        season = st.selectbox("Select Season:", ["Kharif", "Rabi"])
-        monthly_operations = analyzer.CROPS[selected_crop]["operations"][season]
-        st.markdown(f"### Month-specific Operations for {season} season: {monthly_operations}")
+        # Display month-specific operations
+        operations = analyzer.get_month_specific_operations(selected_crop, selected_season)
+        st.markdown(f"### Month-specific Operations:")
+        st.markdown(operations)
 
         # Create a spinner while analyzing
         with st.spinner(f'Analyzing diseases for {selected_crop}...'):
@@ -179,10 +168,11 @@ def main():
 
                 # Generate audio file
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                selected_language = st.selectbox("Select Language", list(analyzer.VOICES.keys()))
                 audio_file = f"crop_disease_analysis_{selected_crop.lower()}_{timestamp}.mp3"
 
                 with st.spinner('Generating audio...'):
-                    analyzer.generate_audio(analysis_text, audio_file)
+                    asyncio.run(analyzer.text_to_speech(analysis_text, audio_file, selected_language))
 
                 # Audio player
                 with open(audio_file, 'rb') as audio_data:

@@ -113,6 +113,13 @@ class StreamlitCropDiseaseAnalyzer:
         communicate = edge_tts.Communicate(text, self.selected_voice)
         await communicate.save(output_file)
 
+    def generate_audio(self, text, output_file):
+        """Wrapper function to run text_to_speech"""
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(self.text_to_speech(text, output_file))
+        loop.close()
+
 def get_binary_file_downloader_html(bin_file, file_label='File'):
     with open(bin_file, 'rb') as f:
         data = f.read()
@@ -175,7 +182,7 @@ def main():
                 audio_file = f"crop_disease_analysis_{selected_crop.lower()}_{timestamp}.mp3"
 
                 with st.spinner('Generating audio...'):
-                    asyncio.run(analyzer.text_to_speech(analysis_text, audio_file))
+                    analyzer.generate_audio(analysis_text, audio_file)
 
                 # Audio player
                 with open(audio_file, 'rb') as audio_data:

@@ -18,16 +18,16 @@ class StreamlitCropDiseaseAnalyzer:
             'Hindi': 'hi-IN-SwaraNeural'
         }
         self.CROPS = {
-            "Tomato": "https://example.com/images/tomato.jpg",
-            "Potato": "https://example.com/images/potato.jpg",
-            "Corn": "https://example.com/images/corn.jpg",
-            "Rice": "https://example.com/images/rice.jpg",
-            "Wheat": "https://example.com/images/wheat.jpg",
-            "Soybean": "https://example.com/images/soybean.jpg",
-            "Cotton": "https://example.com/images/cotton.jpg",
-            "Apple": "https://example.com/images/apple.jpg",
-            "Grape": "https://example.com/images/grape.jpg",
-            "Cucumber": "https://example.com/images/cucumber.jpg"
+            "Tomato": "https://picsum.photos/200/300",
+            "Potato": "https://picsum.photos/200/300",
+            "Corn": "https://picsum.photos/200/300",
+            "Rice": "https://picsum.photos/200/300",
+            "Wheat": "https://picsum.photos/200/300",
+            "Soybean": "https://picsum.photos/200/300",
+            "Cotton": "https://picsum.photos/200/300",
+            "Apple": "https://picsum.photos/200/300",
+            "Grape": "https://picsum.photos/200/300",
+            "Cucumber": "https://picsum.photos/200/300"
         }
         self.NPK_REQUIREMENTS = {
             "Tomato": {"N": 120, "P": 80, "K": 100},

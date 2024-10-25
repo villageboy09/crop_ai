@@ -81,8 +81,11 @@ class StreamlitCropDiseaseAnalyzer:
         }
 
         self.BASE_NPK_REQUIREMENTS = {
-            "Tomato": {"N": 120, "P": 80, "K": 100},
-            "Potato": {"N": 150, "P": 100, "K": 120},
+                "Rice": {"N": 100, "P": 50, "K": 80},
+    "Maize": {"N": 120, "P": 60, "K": 100},
+    "Sorghum": {"N": 90, "P": 40, "K": 70},
+    "Cotton": {"N": 110, "P": 70, "K": 90},
+    "Groundnut": {"N": 80, "P": 60, "K": 70
             # ... other crops
         }
 

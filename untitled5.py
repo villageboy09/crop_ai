@@ -301,25 +301,25 @@ def main():
                 st.markdown(analysis_text)
                 
                 # Generate audio file
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                audio_file = f"crop_disease_analysis_{selected_crop.lower()}_{timestamp}.mp3"
-                
-                with st.spinner('Generating audio...'):
-                    asyncio.run(analyzer.text_to_speech(analysis_text, audio_file, selected_language))
-                
-                # Audio player and download
-                with open(audio_file, 'rb') as audio_data:
-                    st.audio(audio_data.read(), format='audio/mp3')
-                    st.markdown(
-                        get_binary_file_downloader_html(audio_file, 'Audio Summary'),
-                        unsafe_allow_html=True
-                    )
-                
-                # Cleanup
-                try:
-                    os.remove(audio_file)
-                except:
-                    pass
+                    # Generate audio file
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    audio_file = f"crop_disease_analysis_{selected_crop.lower()}_{timestamp}.mp3"
+
+                    with st.spinner('Generating audio...'):
+                        asyncio.run(analyzer.text_to_speech(analysis_text, audio_file, selected_language))
+
+                    # Audio player
+                    with open(audio_file, 'rb') as audio_data:
+                        st.audio(audio_data.read(), format='audio/mp3')
+
+                    # Download button
+                    st.markdown(get_binary_file_downloader_html(audio_file, 'Audio Summary'), unsafe_allow_html=True)
+
+                    # Clean up audio file
+                    try:
+                        os.remove(audio_file)
+                    except:
+                        pass
             else:
                 st.error(analysis_text)
 

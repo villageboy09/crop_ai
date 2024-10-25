@@ -239,7 +239,7 @@ class StreamlitCropDiseaseAnalyzer:
 
 def main():
     st.set_page_config(page_title="Enhanced Crop Disease Analyzer", page_icon="🌱", layout="wide")
-    st.title("🌱 Enhanced Crop Disease Analyzer")
+    st.title("🌱 AI Based Kisok Platform For Farmers")
     
     analyzer = StreamlitCropDiseaseAnalyzer()
 

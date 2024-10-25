@@ -192,7 +192,7 @@ class StreamlitCropDiseaseAnalyzer:
             st.error(f"Error during TTS conversion: {str(e)}")
             raise
 
-    def get_binary_file_downloader_html(self, file_path, file_name):
+     def get_binary_file_downloader_html(self, file_path, file_name):
         """Generate a download link for a binary file."""
         with open(file_path, "rb") as f:
             file_bytes = f.read()
@@ -317,8 +317,8 @@ def main():
                 with open(audio_file, 'rb') as audio_data:
                     st.audio(audio_data.read(), format='audio/mp3')
 
-                # Download button
-                st.markdown(get_binary_file_downloader_html(audio_file, 'Audio Summary'), unsafe_allow_html=True)
+                # Download button - Fixed to use the analyzer instance
+                st.markdown(analyzer.get_binary_file_downloader_html(audio_file, 'Audio Summary'), unsafe_allow_html=True)
 
                 # Clean up audio file
                 try:

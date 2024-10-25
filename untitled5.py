@@ -135,7 +135,63 @@ class StreamlitCropDiseaseAnalyzer:
         
         return recommendations
 
-    # ... (keep existing methods like query_gemini_api, text_to_speech, etc.)
+   
+    def query_gemini_api(self, crop, language):
+        """Query Gemini API for crop disease information in specified language"""
+        try:
+            headers = {
+                "Content-Type": "application/json"
+            }
+
+            # Adjust prompt based on language
+            base_prompt = f"""
+            Analyze and provide detailed information about common diseases in {crop} cultivation.
+            For each disease, include:
+            1. Disease name
+            2. Symptoms
+            3. Favorable conditions
+            4. Prevention methods
+            5. Treatment options
+            
+            Provide the response in {language} language.
+            Format the response in a clear, structured way.
+            """
+
+            payload = {
+                "contents": [{
+                    "parts": [{
+                        "text": base_prompt
+                    }]
+                }]
+            }
+
+            url = f"{self.API_URL}?key={self.API_KEY}"
+            response = requests.post(url, headers=headers, json=payload)
+
+            if response.status_code == 200:
+                return response.json()["candidates"][0]["content"]["parts"][0]["text"]
+            else:
+                error_msg = f"Error: API returned status code {response.status_code}"
+                try:
+                    error_detail = response.json()
+                    error_msg += f"\nDetails: {error_detail.get('error', {}).get('message', 'No details available')}"
+                except:
+                    pass
+                return error_msg
+
+        except Exception as e:
+            return f"Error querying API: {str(e)}"
+
+    async def text_to_speech(self, text, output_file, language):
+        """Convert text to speech using edge-tts"""
+        voice = self.VOICES[language]
+        try:
+            clean_text = " ".join(word for word in text.split() if not word.startswith("#"))
+            communicate = edge_tts.Communicate(clean_text, voice)
+            await communicate.save(output_file)
+        except Exception as e:
+            st.error(f"Error during TTS conversion: {str(e)}")
+            raise# ... (keep existing methods like query_gemini_api, text_to_speech, etc.)
 
 def main():
     st.set_page_config(page_title="Enhanced Crop Disease Analyzer", page_icon="🌱", layout="wide")

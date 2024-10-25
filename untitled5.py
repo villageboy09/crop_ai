@@ -10,7 +10,7 @@ import json
 
 class StreamlitCropDiseaseAnalyzer:
     def __init__(self):
-        # Previous configurations remain the same
+        # API and voice setup
         self.API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent"
         self.API_KEY = st.secrets["gemini"]["api_key"]
         self.WEATHER_API_KEY = st.secrets["visual_crossing"]["api_key"]
@@ -20,7 +20,7 @@ class StreamlitCropDiseaseAnalyzer:
             'Hindi': 'hi-IN-SwaraNeural'
         }
         
-        # Updated CROPS dictionary with disease seasonality
+        # CROPS dictionary with disease seasonality
         self.CROPS = {
             "Tomato": {
                 "image": "tomato.jpg",
@@ -45,11 +45,10 @@ class StreamlitCropDiseaseAnalyzer:
                     12: ["Early Blight", "Frost Damage"]
                 }
             },
-            # Add similar seasonal disease data for other crops
-            # ... [other crops data remains the same]
+            # Additional crops can be added here similarly
         }
         
-        # Rest of the initialization remains the same
+        # NPK region-specific and base data
         self.REGIONAL_NPK = {
             "North": {"N": 1.2, "P": 0.8, "K": 1.0},
             "South": {"N": 0.9, "P": 1.1, "K": 1.2},
@@ -114,7 +113,67 @@ class StreamlitCropDiseaseAnalyzer:
         except Exception as e:
             return f"Error querying API: {str(e)}"
 
-    # [Other methods remain the same]
+    def calculate_growth_stage(self, sowing_date, crop):
+        """Calculate current growth stage based on sowing date"""
+        today = datetime.now()
+        days_since_sowing = (today - sowing_date).days
+        
+        stages = self.CROPS[crop]["stages"]
+        total_days = sum(stage["duration"] for stage in stages.values())
+        
+        # Determine current growth stage
+        current_days = 0
+        for stage, data in stages.items():
+            current_days += data["duration"]
+            if days_since_sowing < current_days:
+                return stage
+        return "Mature"
+
+    def calculate_npk_requirements(self, crop, location, acres, growth_stage):
+        """Calculate NPK requirements based on crop and growth stage"""
+        base_npk = self.BASE_NPK_REQUIREMENTS[crop]
+        
+        # Get region from location (simplified for this example)
+        region = "North"  # You may want to implement a real region lookup based on location
+        
+        npk_multiplier = self.CROPS[crop]["stages"][growth_stage]["npk_multiplier"]
+        
+        # Calculate NPK requirements
+        N = base_npk["N"] * npk_multiplier * acres
+        P = base_npk["P"] * npk_multiplier * acres
+        K = base_npk["K"] * npk_multiplier * acres
+        
+        return {"N": N, "P": P, "K": K}
+
+    async def generate_audio_analysis(self, analysis_text, language, crop):
+        """Generate audio analysis using edge-tts"""
+        try:
+            voice = self.VOICES[language]
+            output_file = f"{crop}_analysis.wav"
+            communicate = edge_tts.Communicate(analysis_text, voice=voice)
+            await communicate.save(output_file)
+            return output_file
+        except Exception as e:
+            st.error(f"Error generating audio: {str(e)}")
+            return None
+
+    def get_weather_data(self, location):
+        """Fetch weather data for the given location"""
+        try:
+            url = f"https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/{location}?key={self.WEATHER_API_KEY}"
+            response = requests.get(url)
+            if response.status_code == 200:
+                data = response.json()
+                return {
+                    "temperature": data["currentConditions"]["temp"],
+                    "humidity": data["currentConditions"]["humidity"],
+                    "conditions": data["currentConditions"]["conditions"]
+                }
+            else:
+                return None
+        except Exception as e:
+            st.error(f"Error fetching weather data: {str(e)}")
+            return None
 
 def main():
     st.set_page_config(page_title="Enhanced Crop Disease Analyzer", page_icon="🌱", layout="wide")
@@ -125,7 +184,7 @@ def main():
     # Sidebar inputs
     selected_language = st.sidebar.selectbox("Select Language", list(analyzer.VOICES.keys()))
     
-    # Auto-fetch location
+    # Auto-fetch location for weather data
     default_location = analyzer.get_user_location() or "Delhi, India"
     location = st.sidebar.text_input("Enter your location (City, State)", value=default_location)
     
@@ -141,78 +200,47 @@ def main():
         with cols[idx % 3]:
             card = st.container()
             with card:
-                st.image(crop_data["image"], caption="", use_column_width=True)
-                if st.button(f"Select {crop_name}", key=f"btn_{crop_name}"):
+                st.image(crop_data["image"], caption=crop_name, use_column_width=True)
+                if st.button(f"Select {crop_name}",
+                if st.button(f"Select {crop_name}"):
                     selected_crop = crop_name
 
     if selected_crop:
-        st.success(f"Selected crop: {selected_crop}")
+        st.markdown(f"### Selected Crop: **{selected_crop}**")
         
-        if st.button("Analyze Crop"):
-            with st.spinner("Analyzing crop and generating audio..."):
-                current_month = datetime.now().month
-                
-                # [Rest of the analysis code remains the same, but uses current_month]
-                st.markdown(f"## Analysis for {selected_crop}")
+        # Determine current growth stage
+        growth_stage = analyzer.calculate_growth_stage(sowing_date, selected_crop)
+        st.write(f"Current Growth Stage: {growth_stage}")
 
-                # Weather data
-                weather_data = analyzer.get_weather_data(location)
-                if weather_data:
-                    st.markdown(f"### Current Weather in {location}:")
-                    st.markdown(f"- Temperature: {weather_data['temperature']}°C")
-                    st.markdown(f"- Humidity: {weather_data['humidity']}%")
-                    st.markdown(f"- Conditions: {weather_data['conditions']}")
+        # Get current month
+        current_month = datetime.now().month
 
-                # Growth stage calculation
-                growth_stage = analyzer.calculate_growth_stage(sowing_date, selected_crop)
-                st.markdown(f"### Current Growth Stage: {growth_stage}")
+        # Query the Gemini API for disease information
+        disease_info = analyzer.query_gemini_api(selected_crop, selected_language, current_month)
+        st.write(disease_info)
 
-                # NPK requirements
-                npk_requirements = analyzer.calculate_npk_requirements(
-                    selected_crop, location, acres, growth_stage
-                )
-                st.markdown(f"### NPK Requirements for {acres} acre(s):")
-                st.markdown(f"- Nitrogen (N): {npk_requirements['N']:.2f} kg")
-                st.markdown(f"- Phosphorus (P): {npk_requirements['P']:.2f} kg")
-                st.markdown(f"- Potassium (K): {npk_requirements['K']:.2f} kg")
+        # Calculate NPK requirements
+        npk_requirements = analyzer.calculate_npk_requirements(selected_crop, location, acres, growth_stage)
+        st.markdown("### NPK Requirements")
+        st.write(f"Nitrogen (N): {npk_requirements['N']} kg")
+        st.write(f"Phosphorus (P): {npk_requirements['P']} kg")
+        st.write(f"Potassium (K): {npk_requirements['K']} kg")
 
-                # Weather-based recommendations
-                if weather_data:
-                    recommendations = analyzer.get_weather_based_recommendations(
-                        weather_data, selected_crop, growth_stage
-                    )
-                    if recommendations:
-                        st.markdown(f"### Weather-Based Recommendations:")
-                        for rec in recommendations:
-                            st.markdown(f"- {rec}")
+        # Generate weather data
+        weather_data = analyzer.get_weather_data(location)
+        if weather_data:
+            st.markdown("### Current Weather Conditions")
+            st.write(f"Temperature: {weather_data['temperature']} °C")
+            st.write(f"Humidity: {weather_data['humidity']} %")
+            st.write(f"Conditions: {weather_data['conditions']}")
 
-                # Month-specific disease analysis
-                st.markdown(f"### Disease Analysis for {selected_crop} (Current Month):")
-                disease_analysis = analyzer.query_gemini_api(
-                    selected_crop, selected_language, current_month
-                )
-                st.markdown(disease_analysis)
-
-                # Generate audio analysis
-                output_file = asyncio.run(analyzer.generate_audio_analysis(
-                    disease_analysis,
-                    selected_language,
-                    selected_crop
-                ))
-
-                if output_file:
-                    st.success("🔊 Audio analysis has been generated!")
-                    st.audio(output_file)
-                    st.markdown("### Download Audio Analysis")
-                    st.markdown(
-                        get_binary_file_downloader_html(
-                            output_file, 
-                            f"{selected_crop} Audio Analysis"
-                        ),
-                        unsafe_allow_html=True
-                    )
-                else:
-                    st.error("Failed to generate audio analysis. Please try again.")
+        # Generate audio analysis
+        audio_file = asyncio.run(analyzer.generate_audio_analysis(disease_info, selected_language, selected_crop))
+        if audio_file:
+            st.markdown("### Audio Analysis")
+            audio_file = open(audio_file, "rb")
+            audio_bytes = audio_file.read()
+            st.audio(audio_bytes, format="audio/wav")
 
 if __name__ == "__main__":
     main()

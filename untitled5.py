@@ -135,7 +135,33 @@ class StreamlitCropDiseaseAnalyzer:
         
         return recommendations
 
-    # ... (keep existing methods like query_gemini_api, text_to_speech, etc.)
+   def query_gemini_api(self, crop, language):
+    prompt = f"Analyze potential diseases for {crop} and provide prevention tips. Respond in {language}."
+    
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {self.API_KEY}"
+    }
+    
+    data = {
+        "contents": [{
+            "parts": [{"text": prompt}]
+        }]
+    }
+    
+    try:
+        response = requests.post(self.API_URL, headers=headers, json=data)
+        response.raise_for_status()
+        
+        result = response.json()
+        
+        if 'candidates' in result and result['candidates']:
+            return result['candidates'][0]['content']['parts'][0]['text']
+        else:
+            return "Error: No response from the API."
+    
+    except requests.exceptions.RequestException as e:
+        return f"Error: Failed to query Gemini API. {str(e)}" # ... (keep existing methods like query_gemini_api, text_to_speech, etc.)
 
 def main():
     st.set_page_config(page_title="Enhanced Crop Disease Analyzer", page_icon="🌱", layout="wide")

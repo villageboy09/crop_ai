@@ -84,18 +84,17 @@ class StreamlitCropDiseaseAnalyzer:
             st.error(f"Error fetching weather data: {str(e)}")
             return None
 
-def calculate_growth_stage(self, sowing_date, crop):
-    """Calculate the current growth stage based on sowing date"""
-    today = datetime.now().date()  # Convert current datetime to date
-    days_since_sowing = (today - sowing_date).days  # Now both are datetime.date
-    accumulated_days = 0
+    def calculate_growth_stage(self, sowing_date, crop):
+        """Calculate the current growth stage based on sowing date"""
+        today = datetime.now().date()
+        days_since_sowing = (today - sowing_date).days
+        accumulated_days = 0
 
-    for stage, info in self.CROPS[crop]["stages"].items():
-        accumulated_days += info["duration"]
-        if days_since_sowing <= accumulated_days:
-            return stage
-    return "Mature"
-
+        for stage, info in self.CROPS[crop]["stages"].items():
+            accumulated_days += info["duration"]
+            if days_since_sowing <= accumulated_days:
+                return stage
+        return "Mature"
 
     def calculate_npk_requirements(self, crop, location, acres, growth_stage):
         """Calculate NPK requirements based on location, area, and growth stage"""
@@ -198,30 +197,30 @@ def main():
         st.markdown(f"### Current Growth Stage: {growth_stage}")
 
         # NPK requirements
-        npk = analyzer.calculate_npk_requirements(selected_crop, location, acres, growth_stage)
-        st.markdown(f"### NPK Requirements for {acres} acres:")
-        st.markdown(f"- Nitrogen: {npk['N']} kg")
-        st.markdown(f"- Phosphorus: {npk['P']} kg")
-        st.markdown(f"- Potassium: {npk['K']} kg")
+        npk_requirements = analyzer.calculate_npk_requirements(selected_crop, location, acres, growth_stage)
+        st.markdown(f"### NPK Requirements for {acres} acre(s):")
+        st.markdown(f"- Nitrogen (N): {npk_requirements['N']:.2f} kg")
+        st.markdown(f"- Phosphorus (P): {npk_requirements['P']:.2f} kg")
+        st.markdown(f"- Potassium (K): {npk_requirements['K']:.2f} kg")
 
         # Weather-based recommendations
         if weather_data:
             recommendations = analyzer.get_weather_based_recommendations(weather_data, selected_crop, growth_stage)
             if recommendations:
-                st.markdown(f"### Weather-based Recommendations:")
+                st.markdown(f"### Weather-Based Recommendations:")
                 for rec in recommendations:
                     st.markdown(f"- {rec}")
 
-        # Disease analysis
-        st.markdown("### Disease Analysis")
-        analysis = analyzer.query_gemini_api(selected_crop, selected_language)
-        st.markdown(analysis)
+        # Crop disease analysis using Gemini API
+        st.markdown(f"### Disease Analysis for {selected_crop}:")
+        disease_analysis = analyzer.query_gemini_api(selected_crop, selected_language)
+        st.markdown(disease_analysis)
 
-        # Text to Speech
-        if st.button("Convert to Speech"):
-            output_file = "output.mp3"
-            asyncio.run(analyzer.text_to_speech(analysis, output_file, selected_language))
-            st.markdown(get_binary_file_downloader_html(output_file, 'Disease Analysis Audio'), unsafe_allow_html=True)
+        # Text-to-speech option
+        if st.button("Convert Analysis to Speech"):
+            output_file = f"{selected_crop}_analysis.mp3"
+            asyncio.run(analyzer.text_to_speech(disease_analysis, output_file, selected_language))
+            st.markdown(get_binary_file_downloader_html(output_file, f"{selected_crop} Analysis"), unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()

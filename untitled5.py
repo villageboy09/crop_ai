@@ -5,13 +5,16 @@ import requests
 import os
 from datetime import datetime
 from googletrans import Translator
-from PIL import Image
 
 class StreamlitCropDiseaseAnalyzer:
     def __init__(self):
-        self.API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent"
-        self.API_KEY = st.secrets["gemini"]["api_key"]
+        # Make sure these secrets are properly set in your Streamlit secrets
+        self.GEMINI_API_KEY = st.secrets["gemini"]["api_key"]
         self.WEATHER_API_KEY = st.secrets["visual_crossing"]["api_key"]
+        
+        # Updated API URLs
+        self.GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent"
+        self.WEATHER_API_URL = "https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline"
         self.IPAPI_URL = "https://ipapi.co/json/"
         
         self.VOICES = {
@@ -20,7 +23,6 @@ class StreamlitCropDiseaseAnalyzer:
             'Hindi': 'hi-IN-SwaraNeural'
         }
         
-        # Updated CROPS dictionary with disease seasons and placeholder images
         self.CROPS = {
             "Tomato": {
                 "image": "https://via.placeholder.com/300x200.png?text=Tomato",
@@ -54,26 +56,33 @@ class StreamlitCropDiseaseAnalyzer:
             return False
 
     def get_weather_data(self, location):
-        """Fetch weather data from Visual Crossing API"""
+        """Fetch weather data from Visual Crossing API with proper authentication"""
         try:
-            base_url = "https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline"
+            # Clean location string
+            clean_location = location.replace(' ', '').replace(',', '/')
+            
+            # Construct the URL with API key in query parameters
+            url = f"{self.WEATHER_API_URL}/{clean_location}/today"
             
             params = {
-                'unitGroup': 'metric',
                 'key': self.WEATHER_API_KEY,
+                'unitGroup': 'metric',
                 'contentType': 'json',
                 'include': 'current',
                 'elements': 'temp,humidity,conditions,precip,cloudcover,windspeed'
             }
             
-            clean_location = location.replace(' ', '').replace(',', '/')
-            url = f"{base_url}/{clean_location}"
-            
-            response = requests.get(url, params=params)
+            # Make request with parameters
+            response = requests.get(url, params=params, timeout=10)
             
             if response.status_code == 200:
                 data = response.json()
+                
+                # Extract current conditions
                 current = data.get('currentConditions', {})
+                if not current:
+                    current = data.get('days', [{}])[0]  # Fallback to first day if no current conditions
+                
                 return {
                     'temperature': current.get('temp', 0),
                     'humidity': current.get('humidity', 0),
@@ -83,42 +92,24 @@ class StreamlitCropDiseaseAnalyzer:
                     'windSpeed': current.get('windspeed', 0)
                 }
             else:
-                st.error(f"Weather API Error: {response.status_code}")
+                error_message = f"Weather API Error: {response.status_code}"
+                try:
+                    error_detail = response.json()
+                    error_message += f" - {error_detail.get('message', '')}"
+                except:
+                    pass
+                st.error(error_message)
                 return None
+                
+        except requests.exceptions.Timeout:
+            st.error("Weather API request timed out. Please try again.")
+            return None
         except Exception as e:
             st.error(f"Error fetching weather data: {str(e)}")
             return None
-            
-    def get_user_location(self):
-        """Auto-fetch user's location using IP-API"""
-        try:
-            response = requests.get(self.IPAPI_URL, timeout=5)
-            if response.status_code == 200:
-                data = response.json()
-                return {
-                    'city': data.get('city', ''),
-                    'region': data.get('region', ''),
-                    'country': data.get('country_name', ''),
-                    'latitude': data.get('latitude', 0),
-                    'longitude': data.get('longitude', 0)
-                }
-            return None
-        except Exception as e:
-            st.error(f"Error fetching location: {str(e)}")
-            return None
-
-    def get_current_season(self):
-        """Determine current season based on month"""
-        month = datetime.now().month
-        if 3 <= month <= 5:
-            return "summer"
-        elif 6 <= month <= 9:
-            return "monsoon"
-        else:
-            return "winter"
 
     def query_gemini_api(self, crop, language, season):
-        """Query Gemini API for season-specific crop disease information"""
+        """Query Gemini API with proper authentication"""
         try:
             seasonal_diseases = self.CROPS[crop]["diseases"][season]
             diseases_list = ", ".join(seasonal_diseases)
@@ -137,26 +128,48 @@ class StreamlitCropDiseaseAnalyzer:
             Format the response in a clear, structured way.
             """
 
+            # Properly structured headers with API key
             headers = {
                 "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.API_KEY}"
+                "x-goog-api-key": self.GEMINI_API_KEY
             }
             
+            # Updated payload structure for Gemini API
             payload = {
                 "contents": [{
                     "parts": [{"text": prompt}]
-                }]
+                }],
+                "generationConfig": {
+                    "temperature": 0.7,
+                    "topK": 40,
+                    "topP": 0.95,
+                    "maxOutputTokens": 1024
+                }
             }
 
-            response = requests.post(self.API_URL, headers=headers, json=payload)
+            # Make request with proper timeout
+            response = requests.post(
+                self.GEMINI_API_URL,
+                headers=headers,
+                json=payload,
+                timeout=30
+            )
 
             if response.status_code == 200:
                 return response.json()["candidates"][0]["content"]["parts"][0]["text"]
             else:
-                return f"Error: API returned status code {response.status_code}"
+                error_message = f"Gemini API Error: {response.status_code}"
+                try:
+                    error_detail = response.json()
+                    error_message += f" - {error_detail.get('error', {}).get('message', '')}"
+                except:
+                    pass
+                return error_message
 
+        except requests.exceptions.Timeout:
+            return "Error: Gemini API request timed out. Please try again."
         except Exception as e:
-            return f"Error querying API: {str(e)}"
+            return f"Error querying Gemini API: {str(e)}"
 
 def create_crop_card(crop_name, image_url):
     """Create a styled card for crop selection"""

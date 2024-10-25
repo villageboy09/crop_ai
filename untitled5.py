@@ -192,7 +192,7 @@ class StreamlitCropDiseaseAnalyzer:
             st.error(f"Error during TTS conversion: {str(e)}")
             raise
 
-     def get_binary_file_downloader_html(self, file_path, file_name):
+    def get_binary_file_downloader_html(self, file_path, file_name):
         """Generate a download link for a binary file."""
         with open(file_path, "rb") as f:
             file_bytes = f.read()

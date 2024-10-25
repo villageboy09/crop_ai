@@ -85,7 +85,7 @@ class StreamlitCropDiseaseAnalyzer:
     "Maize": {"N": 120, "P": 60, "K": 100},
     "Sorghum": {"N": 90, "P": 40, "K": 70},
     "Cotton": {"N": 110, "P": 70, "K": 90},
-    "Groundnut": {"N": 80, "P": 60, "K": 70
+    "Groundnut": {"N": 80, "P": 60, "K": 70}
             # ... other crops
         }
 

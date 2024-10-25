@@ -25,7 +25,7 @@ class StreamlitCropDiseaseAnalyzer:
         # Crop data with image URLs and growth stages
         self.CROPS = {
     "Rice": {
-        "image": "https://picsum.photos/200/300?random=1",
+        "image": "https://cdn.britannica.com/89/140889-050-EC3F00BF/Ripening-heads-rice-Oryza-sativa.jpg",
         "stages": {
             "Seedling": {"duration": 25, "npk_multiplier": 0.4},
             "Vegetative": {"duration": 50, "npk_multiplier": 0.9},
@@ -34,7 +34,7 @@ class StreamlitCropDiseaseAnalyzer:
         }
     },
     "Maize": {
-        "image": "https://picsum.photos/200/300?random=2",
+        "image": "https://encrypted-tbn2.gstatic.com/images?q=tbn:ANd9GcTSQTwY5H90hpRERbth6Y70s48hYKQQ3EimRbhVpGTe_zCHc0II",
         "stages": {
             "Seedling": {"duration": 20, "npk_multiplier": 0.5},
             "Vegetative": {"duration": 45, "npk_multiplier": 1.0},
@@ -43,7 +43,7 @@ class StreamlitCropDiseaseAnalyzer:
         }
     },
     "Sorghum": {
-        "image": "https://picsum.photos/200/300?random=3",
+        "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQFyoo17z6OwjPUWoBWrKNMEfJf1Cd4wpx5atIJGCgtZU8E9zPQ",
         "stages": {
             "Seedling": {"duration": 22, "npk_multiplier": 0.5},
             "Vegetative": {"duration": 40, "npk_multiplier": 1.0},
@@ -52,7 +52,7 @@ class StreamlitCropDiseaseAnalyzer:
         }
     },
     "Cotton": {
-        "image": "https://picsum.photos/200/300?random=4",
+        "image": "https://cdn.britannica.com/18/156618-050-39339EA2/cotton-harvesting.jpg",
         "stages": {
             "Seedling": {"duration": 25, "npk_multiplier": 0.6},
             "Vegetative": {"duration": 45, "npk_multiplier": 1.1},
@@ -61,7 +61,7 @@ class StreamlitCropDiseaseAnalyzer:
         }
     },
     "Groundnut": {
-        "image": "https://picsum.photos/200/300?random=5",
+        "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQX4-OuVBESIfeRVCsFnLstkRLvDRAUpeSlGA&s",
         "stages": {
             "Seedling": {"duration": 20, "npk_multiplier": 0.5},
             "Vegetative": {"duration": 40, "npk_multiplier": 1.0},

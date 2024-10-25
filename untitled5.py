@@ -45,8 +45,7 @@ class StreamlitCropDiseaseAnalyzer:
         }
 
         self.translator = Translator()
-
-    def get_weather_data(self, location):
+   def get_weather_data(self, location):
         """Fetch weather data from Visual Crossing API"""
         try:
             # Base URL for Visual Crossing Weather API
@@ -85,7 +84,7 @@ class StreamlitCropDiseaseAnalyzer:
         except Exception as e:
             st.error(f"Error fetching weather data: {str(e)}")
             return None
-
+            
     def get_user_location(self):
         """Auto-fetch user's location using IP-API"""
         try:
@@ -113,17 +112,6 @@ class StreamlitCropDiseaseAnalyzer:
             return "monsoon"
         else:
             return "winter"
-
-    async def text_to_speech(self, text, output_file, language):
-        """Convert text to speech using edge-tts"""
-        voice = self.VOICES[language]
-        try:
-            clean_text = " ".join(word for word in text.split() if not word.startswith("#"))
-            communicate = edge_tts.Communicate(clean_text, voice)
-            await communicate.save(output_file)
-        except Exception as e:
-            st.error(f"Error during TTS conversion: {str(e)}")
-            raise
 
     def query_gemini_api(self, crop, language, season):
         """Query Gemini API for season-specific crop disease information"""
@@ -165,13 +153,23 @@ class StreamlitCropDiseaseAnalyzer:
             return f"Error querying API: {str(e)}"
 
 def create_crop_card(crop_name, image_url):
-    """Create a styled card for crop selection using Streamlit columns"""
-    col = st.column()
-    with col:
-        st.image(image_url, use_column_width=True)
-        st.markdown(f"### {crop_name}")
-        selected = st.button("Select", key=f"btn_{crop_name}")
-    return selected
+    """Create a styled card for crop selection"""
+    card_html = f"""
+        <div style="
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 10px;
+            margin: 5px;
+            text-align: center;
+            cursor: pointer;
+            transition: transform 0.2s;
+            hover: transform: scale(1.05);
+        ">
+            <img src="{image_url}" style="width: 100%; height: 150px; object-fit: cover; border-radius: 4px;">
+            <h3 style="margin-top: 10px;">{crop_name}</h3>
+        </div>
+    """
+    return card_html
 
 def main():
     st.set_page_config(page_title="Smart Crop Disease Analyzer", page_icon="🌱", layout="wide")
@@ -196,16 +194,14 @@ def main():
 
     # Create crop selection grid
     st.subheader("Select a Crop for Analysis")
+    cols = st.columns(4)  # Create 4 columns for the grid
     
-    # Create a 4-column grid for crop cards
-    cols = st.columns(4)
     selected_crop = None
-    
     for idx, (crop, data) in enumerate(analyzer.CROPS.items()):
         with cols[idx % 4]:
-            if st.button(crop, key=f"crop_{idx}"):
+            card_html = create_crop_card(crop, data["image"])
+            if st.markdown(card_html, unsafe_allow_html=True):
                 selected_crop = crop
-            st.image(data["image"], caption=crop, use_column_width=True)
 
     if selected_crop:
         st.markdown(f"## Analysis for {selected_crop}")

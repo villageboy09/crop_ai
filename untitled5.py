@@ -118,7 +118,6 @@ class StreamlitCropDiseaseAnalyzer:
     def get_region(self, location):
         """Determine region based on location (simplified example)"""
         # This should be replaced with actual region determination logic
-        # possibly using geocoding and region boundary data
         return "North"  # Default return
 
     def get_weather_based_recommendations(self, weather_data, crop, growth_stage):
@@ -135,7 +134,6 @@ class StreamlitCropDiseaseAnalyzer:
         
         return recommendations
 
-   
     def query_gemini_api(self, crop, language):
         """Query Gemini API for crop disease information in specified language"""
         try:
@@ -143,7 +141,6 @@ class StreamlitCropDiseaseAnalyzer:
                 "Content-Type": "application/json"
             }
 
-            # Adjust prompt based on language
             base_prompt = f"""
             Analyze and provide detailed information about common diseases in {crop} cultivation.
             For each disease, include:
@@ -191,148 +188,51 @@ class StreamlitCropDiseaseAnalyzer:
             await communicate.save(output_file)
         except Exception as e:
             st.error(f"Error during TTS conversion: {str(e)}")
-            raise# ... (keep existing methods like query_gemini_api, text_to_speech, etc.)
-    def get_binary_file_downloader_html(file_path, file_name):
+            raise
+
+def get_binary_file_downloader_html(file_path, file_name):
     """Generate a download link for a binary file."""
     with open(file_path, "rb") as f:
         file_bytes = f.read()
     b64 = base64.b64encode(file_bytes).decode()  # Convert to base64
     return f'<a href="data:file/unknown;base64,{b64}" download="{file_name}">Download {file_name}</a>'
 
-
-import streamlit as st
-from datetime import datetime, timedelta
-import asyncio
-import os
-
 def main():
-    st.set_page_config(page_title="Enhanced Crop Disease Analyzer", page_icon="🌱", layout="wide")
-    st.title("🌱 Enhanced Crop Disease Analyzer")
-    
+    st.set_page_config(page_title="Enhanced Crop Disease Analyzer", layout="wide")
+    st.title("Enhanced Crop Disease Analyzer")
+
     analyzer = StreamlitCropDiseaseAnalyzer()
 
-    # Language selection
-    selected_language = st.sidebar.selectbox("Select Language", list(analyzer.VOICES.keys()))
+    location = st.text_input("Enter your location:")
+    crop = st.selectbox("Select a crop:", list(analyzer.CROPS.keys()))
+    sowing_date = st.date_input("Enter sowing date:", datetime.now())
 
-    # Location input
-    location = st.sidebar.text_input("Enter your location (City, State)", "Delhi, India")
-    acres = st.sidebar.number_input("Enter area in acres", min_value=0.1, value=1.0, step=0.1)
-    
-    # Date selection
-    sowing_date = st.sidebar.date_input(
-        "Select sowing date",
-        datetime.now() - timedelta(days=30)
-    )
+    acres = st.number_input("Enter area in acres:", min_value=0.0)
 
-    # Create crop selection grid
-    st.subheader("Select a Crop")
-    cols = st.columns(5)
-    selected_crop = None
-    
-    for idx, (crop, data) in enumerate(analyzer.CROPS.items()):
-        with cols[idx % 5]:
-            if st.button(crop, key=f"crop_{idx}"):
-                selected_crop = crop
-            st.image(data["image"], caption=crop, use_column_width=True)
+    if st.button("Analyze"):
+        growth_stage = analyzer.calculate_growth_stage(sowing_date, crop)
+        npk_requirements = analyzer.calculate_npk_requirements(crop, location, acres, growth_stage)
 
-    if selected_crop:
-        st.markdown(f"## Analysis for {selected_crop}")
+        st.write(f"Current Growth Stage: {growth_stage}")
+        st.write(f"NPK Requirements (per acre): N: {npk_requirements['N']}, P: {npk_requirements['P']}, K: {npk_requirements['K']}")
 
-        # Fetch and display weather data
         weather_data = analyzer.get_weather_data(location)
         if weather_data:
-            st.subheader("Current Weather Conditions")
-            
-            # Create two rows of metrics for weather data
-            col1, col2, col3, col4 = st.columns(4)
-            with col1:
-                st.metric("Temperature", f"{weather_data['temperature']}°C")
-            with col2:
-                st.metric("Humidity", f"{weather_data['humidity']}%")
-            with col3:
-                st.metric("Wind Speed", f"{weather_data['windSpeed']} km/h")
-            with col4:
-                st.metric("Precipitation", f"{weather_data['precipitation']} mm")
-                
-            # Second row of weather metrics
-            col5, col6, col7, col8 = st.columns(4)
-            with col5:
-                st.metric("Cloud Cover", f"{weather_data['cloudCover']}%")
-            with col6:
-                st.metric("Pressure", f"{weather_data['pressure']} mb")
-            with col7:
-                st.metric("Conditions", weather_data['conditions'])
-            
-            # Weather-based alerts
-            if weather_data['humidity'] > 80:
-                st.warning("⚠️ High humidity detected - Monitor for disease risk")
-            if weather_data['precipitation'] > 10:
-                st.warning("⚠️ Significant rainfall - Check drainage systems")
+            st.write(f"Weather Data: {weather_data}")
+            recommendations = analyzer.get_weather_based_recommendations(weather_data, crop, growth_stage)
+            for rec in recommendations:
+                st.write(f"- {rec}")
 
-        # Calculate and display growth stage
-        growth_stage = analyzer.calculate_growth_stage(
-            datetime.combine(sowing_date, datetime.min.time()),
-            selected_crop
-        )
-        st.info(f"Current Growth Stage: {growth_stage}")
+            disease_info = analyzer.query_gemini_api(crop, "Hindi")
+            st.write(disease_info)
 
-        # Calculate and display NPK requirements
-        npk_req = analyzer.calculate_npk_requirements(
-            selected_crop, 
-            location, 
-            acres,
-            growth_stage
-        )
-        
-        st.subheader("Fertilizer Recommendations")
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("Nitrogen (N)", f"{npk_req['N']:.1f} kg/acre")
-        with col2:
-            st.metric("Phosphorus (P)", f"{npk_req['P']:.1f} kg/acre")
-        with col3:
-            st.metric("Potassium (K)", f"{npk_req['K']:.1f} kg/acre")
+            tts_output_file = f"{crop}_disease_info.wav"
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(analyzer.text_to_speech(disease_info, tts_output_file, "Hindi"))
 
-        # Display weather-based recommendations
-        if weather_data:
-            recommendations = analyzer.get_weather_based_recommendations(
-                weather_data,
-                selected_crop,
-                growth_stage
-            )
-            if recommendations:
-                st.subheader("Weather-based Recommendations")
-                for rec in recommendations:
-                    st.write(f"• {rec}")
-
-        # Continue with disease analysis and audio generation
-        with st.spinner(f'Analyzing diseases for {selected_crop}...'):
-            analysis_text = analyzer.query_gemini_api(selected_crop, selected_language)
-            
-            if "Error:" not in analysis_text:
-                st.markdown(analysis_text)
-                
-                # Generate audio file
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                audio_file = f"crop_disease_analysis_{selected_crop.lower()}_{timestamp}.mp3"
-
-                with st.spinner('Generating audio...'):
-                    asyncio.run(analyzer.text_to_speech(analysis_text, audio_file, selected_language))
-
-                # Audio player
-                with open(audio_file, 'rb') as audio_data:
-                    st.audio(audio_data.read(), format='audio/mp3')
-
-                # Download button
-                st.markdown(get_binary_file_downloader_html(audio_file, 'Audio Summary'), unsafe_allow_html=True)
-
-                # Clean up audio file
-                try:
-                    os.remove(audio_file)
-                except:
-                    pass
-            else:
-                st.error(analysis_text)
+            download_link = get_binary_file_downloader_html(tts_output_file, tts_output_file)
+            st.markdown(download_link, unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()

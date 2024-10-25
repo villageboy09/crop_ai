@@ -1,305 +1,351 @@
 import streamlit as st
-import asyncio
-import edge_tts
+import pandas as pd
+import numpy as np
 from datetime import datetime, timedelta
 import requests
-import os
-import base64
-from googletrans import Translator
-import json
+import plotly.express as px
+import plotly.graph_objects as go
 from PIL import Image
-import pandas as pd
+import io
+import tensorflow as tf
+import cv2
+import json
+from sklearn.ensemble import RandomForestRegressor
+from googletrans import Translator
 
-class StreamlitCropDiseaseAnalyzer:
+class SmartFarmingAssistant:
     def __init__(self):
-        # Existing API configurations
-        self.API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent"
-        self.API_KEY = st.secrets["gemini"]["api_key"]
+        # API configurations
         self.WEATHER_API_KEY = st.secrets["visual_crossing"]["api_key"]
-        self.VOICES = {
-            'Telugu': 'te-IN-ShrutiNeural',
-            'English': 'en-US-AriaNeural',
-            'Hindi': 'hi-IN-SwaraNeural'
+        self.GEMINI_API_KEY = st.secrets["gemini"]["api_key"]
+        
+        # Language support
+        self.LANGUAGES = {
+            'English': 'en',
+            'Hindi': 'hi',
+            'Telugu': 'te',
+            'Tamil': 'ta',
+            'Bengali': 'bn'
         }
         
-        # Enhanced crop data with stage-specific diseases
-        self.CROPS = {
+        # Enhanced crop database with detailed parameters
+        self.CROPS_DB = {
             "Rice": {
-                "image": "https://cdn.britannica.com/89/140889-050-EC3F00BF/Ripening-heads-rice-Oryza-sativa.jpg",
-                "stages": {
+                "image": "rice.jpg",
+                "optimal_conditions": {
+                    "soil_ph": {"min": 5.5, "max": 6.5},
+                    "temperature": {"min": 20, "max": 35},
+                    "humidity": {"min": 60, "max": 80},
+                    "rainfall": {"min": 100, "max": 200},
+                },
+                "growth_stages": {
                     "Seedling": {
-                        "duration": 25,
-                        "npk_multiplier": 0.4,
-                        "common_diseases": ["Seed Rot", "Seedling Blight", "Root Rot"]
+                        "duration": 20,
+                        "water_req": 50,
+                        "nutrient_req": {"N": 30, "P": 20, "K": 20},
+                        "pest_risks": ["Stem Borer", "Leaf Roller"]
                     },
                     "Vegetative": {
-                        "duration": 50,
-                        "npk_multiplier": 0.9,
-                        "common_diseases": ["Bacterial Leaf Blight", "Leaf Blast", "Sheath Blight"]
+                        "duration": 55,
+                        "water_req": 100,
+                        "nutrient_req": {"N": 50, "P": 30, "K": 30},
+                        "pest_risks": ["Brown Plant Hopper", "Blast"]
                     },
-                    "Flowering": {
-                        "duration": 30,
-                        "npk_multiplier": 1.2,
-                        "common_diseases": ["Neck Blast", "False Smut", "Bacterial Leaf Streak"]
-                    },
-                    "Maturing": {
+                    "Reproductive": {
                         "duration": 35,
-                        "npk_multiplier": 1.4,
-                        "common_diseases": ["Grain Discoloration", "Brown Spot", "Stem Rot"]
+                        "water_req": 120,
+                        "nutrient_req": {"N": 40, "P": 40, "K": 40},
+                        "pest_risks": ["Neck Blast", "Sheath Blight"]
+                    },
+                    "Ripening": {
+                        "duration": 30,
+                        "water_req": 80,
+                        "nutrient_req": {"N": 20, "P": 20, "K": 30},
+                        "pest_risks": ["Grain Discoloration", "Rice Bug"]
                     }
                 }
             },
-            "Maize": {
-                "image": "https://encrypted-tbn2.gstatic.com/images?q=tbn:ANd9GcTSQTwY5H90hpRERbth6Y70s48hYKQQ3EimRbhVpGTe_zCHc0II",
-                "stages": {
-                    "Seedling": {
-                        "duration": 20,
-                        "npk_multiplier": 0.5,
-                        "common_diseases": ["Seed Rot", "Damping Off", "Seedling Blight"]
-                    },
-                    "Vegetative": {
-                        "duration": 45,
-                        "npk_multiplier": 1.0,
-                        "common_diseases": ["Northern Leaf Blight", "Common Rust", "Gray Leaf Spot"]
-                    },
-                    "Flowering": {
-                        "duration": 30,
-                        "npk_multiplier": 1.3,
-                        "common_diseases": ["Southern Rust", "Common Smut", "Head Smut"]
-                    },
-                    "Maturing": {
-                        "duration": 35,
-                        "npk_multiplier": 1.6,
-                        "common_diseases": ["Ear Rot", "Stalk Rot", "Kernel Rot"]
-                    }
-                }
-            }
             # Add similar structure for other crops
         }
-
-        # Other existing configurations remain the same
-        self.REGIONAL_NPK = {
-            "North": {"N": 1.2, "P": 0.8, "K": 1.0},
-            "South": {"N": 0.9, "P": 1.1, "K": 1.2},
-            "East": {"N": 1.1, "P": 0.9, "K": 0.8},
-            "West": {"N": 1.0, "P": 1.0, "K": 1.0},
-            "Central": {"N": 1.1, "P": 1.0, "K": 0.9}
-        }
-
-        self.BASE_NPK_REQUIREMENTS = {
-            "Rice": {"N": 100, "P": 50, "K": 80},
-            "Maize": {"N": 120, "P": 60, "K": 100},
-            "Sorghum": {"N": 90, "P": 40, "K": 70},
-            "Cotton": {"N": 110, "P": 70, "K": 90},
-            "Groundnut": {"N": 80, "P": 60, "K": 70}
-        }
-
+        
+        # Initialize ML models
+        self.load_models()
+        
+        # Initialize translator
         self.translator = Translator()
         
-        # Cache for disease analysis
-        self.disease_analysis_cache = {}
+        # Cache for optimization recommendations
+        self.recommendations_cache = {}
 
-    def get_stage_specific_diseases(self, crop, growth_stage):
-        """Get list of common diseases for specific growth stage"""
+    def load_models(self):
+        """Load or initialize ML models"""
         try:
-            return self.CROPS[crop]["stages"][growth_stage]["common_diseases"]
-        except KeyError:
-            return []
-
-    def background_disease_analysis(self, crop, growth_stage, language):
-        """Perform background analysis of diseases specific to growth stage"""
-        cache_key = f"{crop}_{growth_stage}_{language}"
-        
-        if cache_key in self.disease_analysis_cache:
-            return self.disease_analysis_cache[cache_key]
-
-        diseases = self.get_stage_specific_diseases(crop, growth_stage)
-        if not diseases:
-            return None
-
-        try:
-            headers = {
-                "Content-Type": "application/json"
-            }
-
-            prompt = f"""
-            Analyze the following diseases commonly found in {crop} during the {growth_stage} stage:
-            {', '.join(diseases)}
-
-            For each disease, provide:
-            1. Brief description
-            2. Key symptoms to look for at this growth stage
-            3. Immediate control measures
-            4. Prevention tips specific to {growth_stage} stage
-
-            Keep the response concise and practical for farmers.
-            Provide the response in {language} language.
-            """
-
-            payload = {
-                "contents": [{
-                    "parts": [{
-                        "text": prompt
-                    }]
-                }]
-            }
-
-            url = f"{self.API_URL}?key={self.API_KEY}"
-            response = requests.post(url, headers=headers, json=payload)
-
-            if response.status_code == 200:
-                analysis = response.json()["candidates"][0]["content"]["parts"][0]["text"]
-                self.disease_analysis_cache[cache_key] = analysis
-                return analysis
-            else:
-                return f"Error: API returned status code {response.status_code}"
-
+            # Load disease detection model
+            self.disease_model = tf.keras.models.load_model('models/disease_detection.h5')
+            
+            # Initialize yield prediction model
+            self.yield_model = RandomForestRegressor()
+            # In production, load pretrained model
+            
         except Exception as e:
-            return f"Error in disease analysis: {str(e)}"
+            st.error(f"Error loading models: {str(e)}")
 
-    # Existing methods remain the same
-    def get_weather_data(self, location):
-        """Fetch weather data from Visual Crossing API"""
-        # Implementation remains the same
+    def detect_disease(self, image):
+        """Detect crop diseases from image"""
+        try:
+            # Preprocess image
+            img = cv2.resize(image, (224, 224))
+            img = img / 255.0
+            img = np.expand_dims(img, axis=0)
+            
+            # Make prediction
+            pred = self.disease_model.predict(img)
+            return self.process_disease_prediction(pred)
+        except Exception as e:
+            return f"Error in disease detection: {str(e)}"
+
+    def predict_yield(self, crop, weather_data, soil_data):
+        """Predict crop yield based on conditions"""
+        try:
+            # Prepare features
+            features = self.prepare_features(weather_data, soil_data)
+            
+            # Make prediction
+            predicted_yield = self.yield_model.predict([features])[0]
+            
+            return {
+                'predicted_yield': predicted_yield,
+                'confidence': self.calculate_prediction_confidence()
+            }
+        except Exception as e:
+            return f"Error in yield prediction: {str(e)}"
+
+    def get_optimization_recommendations(self, crop, conditions, language='en'):
+        """Generate resource optimization recommendations"""
+        cache_key = f"{crop}_{language}"
+        
+        if cache_key in self.recommendations_cache:
+            return self.recommendations_cache[cache_key]
+            
+        try:
+            optimal = self.CROPS_DB[crop]["optimal_conditions"]
+            current = conditions
+            
+            recommendations = {
+                'water': self.optimize_water_usage(optimal, current),
+                'fertilizer': self.optimize_fertilizer_usage(optimal, current),
+                'pesticide': self.optimize_pesticide_usage(crop, current)
+            }
+            
+            # Translate recommendations if needed
+            if language != 'en':
+                recommendations = self.translate_recommendations(recommendations, language)
+                
+            self.recommendations_cache[cache_key] = recommendations
+            return recommendations
+            
+        except Exception as e:
+            return f"Error generating recommendations: {str(e)}"
+
+    def optimize_water_usage(self, optimal, current):
+        """Calculate optimal water usage"""
+        # Implementation of water optimization logic
         pass
 
-    def calculate_growth_stage(self, sowing_date, crop):
-        """Calculate current growth stage based on sowing date"""
-        # Implementation remains the same
+    def optimize_fertilizer_usage(self, optimal, current):
+        """Calculate optimal fertilizer usage"""
+        # Implementation of fertilizer optimization logic
         pass
 
-    def calculate_npk_requirements(self, crop, location, acres, growth_stage):
-        """Calculate NPK requirements based on location, area, and growth stage"""
-        # Implementation remains the same
+    def optimize_pesticide_usage(self, crop, conditions):
+        """Calculate optimal pesticide usage"""
+        # Implementation of pesticide optimization logic
         pass
 
-    async def text_to_speech(self, text, output_file, language):
-        """Convert text to speech using edge-tts"""
-        # Implementation remains the same
-        pass
+    def get_weather_forecast(self, location):
+        """Fetch weather forecast data"""
+        try:
+            url = f"https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/{location}?key={self.WEATHER_API_KEY}"
+            response = requests.get(url)
+            return response.json()
+        except Exception as e:
+            return f"Error fetching weather data: {str(e)}"
+
+    def analyze_soil_image(self, image):
+        """Analyze soil quality from image"""
+        try:
+            # Implement soil analysis logic
+            # This could use another ML model specific to soil analysis
+            pass
+        except Exception as e:
+            return f"Error in soil analysis: {str(e)}"
 
 def main():
-    st.set_page_config(page_title="Enhanced Crop Disease Analyzer", page_icon="🌱", layout="wide")
-    st.title("🌱 AI Based Kiosk Platform For Farmers")
-    
-    analyzer = StreamlitCropDiseaseAnalyzer()
-
-    # Language selection
-    selected_language = st.sidebar.selectbox("Select Language", list(analyzer.VOICES.keys()))
-
-    # Location input
-    location = st.sidebar.text_input("Enter your location (City, State)", "Delhi, India")
-    acres = st.sidebar.number_input("Enter area in acres", min_value=0.1, value=1.0, step=0.1)
-    
-    # Date selection
-    sowing_date = st.sidebar.date_input(
-        "Select sowing date",
-        datetime.now() - timedelta(days=30)
+    st.set_page_config(
+        page_title="Smart Farming Assistant",
+        page_icon="🌾",
+        layout="wide"
     )
-
-    # Create crop selection grid
-    st.subheader("Select a Crop")
-    cols = st.columns(5)
-    selected_crop = None
     
-    for idx, (crop, data) in enumerate(analyzer.CROPS.items()):
-        with cols[idx % 5]:
-            if st.button(crop, key=f"crop_{idx}"):
-                selected_crop = crop
-            st.image(data["image"], caption=crop, use_column_width=True)
-
-    if selected_crop:
-        st.markdown(f"## Analysis for {selected_crop}")
-
-        # Calculate growth stage
-        growth_stage = analyzer.calculate_growth_stage(
-            datetime.combine(sowing_date, datetime.min.time()),
-            selected_crop
+    # Initialize the assistant
+    assistant = SmartFarmingAssistant()
+    
+    # Sidebar for user inputs
+    with st.sidebar:
+        st.title("🌾 Smart Farming Assistant")
+        
+        # Language selection
+        selected_language = st.selectbox(
+            "Select Language",
+            list(assistant.LANGUAGES.keys())
+        )
+        
+        # Location input
+        location = st.text_input("Enter Location", "Delhi, India")
+        
+        # Crop selection
+        selected_crop = st.selectbox(
+            "Select Crop",
+            list(assistant.CROPS_DB.keys())
+        )
+        
+        # Area input
+        area = st.number_input("Field Area (acres)", 0.1, 100.0, 1.0)
+        
+        # Farming type
+        farming_type = st.selectbox(
+            "Farming Type",
+            ["Traditional", "Organic", "Mixed"]
         )
 
-        # Display current stage with progress
-        st.subheader("Crop Growth Stage")
-        stages = list(analyzer.CROPS[selected_crop]["stages"].keys())
-        current_stage_idx = stages.index(growth_stage)
-        progress = (current_stage_idx + 1) / len(stages)
+    # Main content area
+    st.title("Precision Farming Optimization")
+    
+    # Create tabs for different features
+    tabs = st.tabs([
+        "📊 Dashboard",
+        "🌱 Crop Monitor",
+        "💧 Resource Optimizer",
+        "🔬 Soil Analysis",
+        "📈 Yield Predictor"
+    ])
+    
+    # Dashboard Tab
+    with tabs[0]:
+        st.header("Farm Dashboard")
         
-        st.progress(progress)
-        st.info(f"Current Growth Stage: {growth_stage}")
-
-        # Weather data and recommendations
-        col1, col2 = st.columns([2, 1])
+        # Weather information
+        col1, col2, col3 = st.columns(3)
         
-        with col1:
-            weather_data = analyzer.get_weather_data(location)
-            if weather_data:
-                st.subheader("Current Weather Conditions")
-                
-                # Weather metrics
-                wcol1, wcol2, wcol3, wcol4 = st.columns(4)
-                with wcol1:
-                    st.metric("Temperature", f"{weather_data['temperature']}°C")
-                with wcol2:
-                    st.metric("Humidity", f"{weather_data['humidity']}%")
-                with wcol3:
-                    st.metric("Wind Speed", f"{weather_data['windSpeed']} km/h")
-                with wcol4:
-                    st.metric("Precipitation", f"{weather_data['precipitation']} mm")
-
-        with col2:
-            # NPK requirements
-            npk_req = analyzer.calculate_npk_requirements(
-                selected_crop, 
-                location, 
-                acres,
-                growth_stage
-            )
+        weather_data = assistant.get_weather_forecast(location)
+        if isinstance(weather_data, dict):
+            with col1:
+                st.metric("Temperature", f"{weather_data['currentConditions']['temp']}°C")
+            with col2:
+                st.metric("Humidity", f"{weather_data['currentConditions']['humidity']}%")
+            with col3:
+                st.metric("Rainfall", f"{weather_data['currentConditions']['precip']} mm")
+        
+        # Crop status summary
+        st.subheader("Crop Status")
+        status_cols = st.columns(4)
+        
+        # Add crop status metrics
+        
+    # Crop Monitor Tab
+    with tabs[1]:
+        st.header("Crop Health Monitor")
+        
+        # Image upload for disease detection
+        uploaded_file = st.file_uploader(
+            "Upload crop image for disease detection",
+            type=['jpg', 'jpeg', 'png']
+        )
+        
+        if uploaded_file:
+            image = Image.open(uploaded_file)
+            st.image(image, caption="Uploaded Image", use_column_width=True)
             
-            st.subheader("Fertilizer Needs")
-            st.metric("Nitrogen (N)", f"{npk_req['N']:.1f} kg/acre")
-            st.metric("Phosphorus (P)", f"{npk_req['P']:.1f} kg/acre")
-            st.metric("Potassium (K)", f"{npk_req['K']:.1f} kg/acre")
-
-        # Disease analysis specific to growth stage
-        st.subheader(f"Disease Analysis for {growth_stage} Stage")
+            if st.button("Analyze Image"):
+                with st.spinner("Analyzing image..."):
+                    # Process image and show results
+                    results = assistant.detect_disease(image)
+                    st.write(results)
+    
+    # Resource Optimizer Tab
+    with tabs[2]:
+        st.header("Resource Optimization")
         
-        with st.spinner(f'Analyzing potential diseases for {selected_crop} in {growth_stage} stage...'):
-            analysis = analyzer.background_disease_analysis(
-                selected_crop,
-                growth_stage,
-                selected_language
-            )
+        # Get current conditions
+        current_conditions = {
+            "temperature": weather_data['currentConditions']['temp'],
+            "humidity": weather_data['currentConditions']['humidity'],
+            "rainfall": weather_data['currentConditions']['precip']
+        }
+        
+        # Get optimization recommendations
+        recommendations = assistant.get_optimization_recommendations(
+            selected_crop,
+            current_conditions,
+            assistant.LANGUAGES[selected_language]
+        )
+        
+        # Display recommendations
+        if isinstance(recommendations, dict):
+            col1, col2, col3 = st.columns(3)
             
-            if analysis and "Error:" not in analysis:
-                st.markdown(analysis)
+            with col1:
+                st.subheader("💧 Water Usage")
+                st.write(recommendations['water'])
                 
-                # Generate audio file
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                audio_file = f"stage_disease_analysis_{selected_crop.lower()}_{timestamp}.mp3"
-
-                with st.spinner('Generating audio summary...'):
-                    asyncio.run(analyzer.text_to_speech(analysis, audio_file, selected_language))
-
-                # Audio player
-                with open(audio_file, 'rb') as audio_data:
-                    st.audio(audio_data.read(), format='audio/mp3')
+            with col2:
+                st.subheader("🌿 Fertilizer Usage")
+                st.write(recommendations['fertilizer'])
                 
-                # Clean up audio file
-                try:
-                    os.remove(audio_file)
-                except:
-                    pass
-            else:
-                st.error("Unable to generate disease analysis at this time.")
-
-        # Weather-based alerts
-        if weather_data:
-            st.subheader("Weather Alerts")
-            if weather_data['humidity'] > 80:
-                st.warning("⚠️ High humidity detected - Increased risk of fungal diseases")
-            if weather_data['precipitation'] > 10:
-                st.warning("⚠️ Significant rainfall - Monitor for water-borne diseases")
-            if weather_data['temperature'] > 35:
-                st.warning("⚠️ High temperature - Watch for heat stress symptoms")
+            with col3:
+                st.subheader("🔄 Pesticide Usage")
+                st.write(recommendations['pesticide'])
+    
+    # Soil Analysis Tab
+    with tabs[3]:
+        st.header("Soil Analysis")
+        
+        # Soil image upload
+        soil_image = st.file_uploader(
+            "Upload soil image for analysis",
+            type=['jpg', 'jpeg', 'png']
+        )
+        
+        if soil_image:
+            image = Image.open(soil_image)
+            st.image(image, caption="Soil Sample", use_column_width=True)
+            
+            if st.button("Analyze Soil"):
+                with st.spinner("Analyzing soil quality..."):
+                    # Process soil image and show results
+                    soil_results = assistant.analyze_soil_image(image)
+                    st.write(soil_results)
+    
+    # Yield Predictor Tab
+    with tabs[4]:
+        st.header("Yield Prediction")
+        
+        # Collect additional data for yield prediction
+        soil_ph = st.slider("Soil pH", 0.0, 14.0, 7.0)
+        soil_moisture = st.slider("Soil Moisture (%)", 0, 100, 50)
+        
+        if st.button("Predict Yield"):
+            with st.spinner("Calculating expected yield..."):
+                # Make yield prediction
+                prediction = assistant.predict_yield(
+                    selected_crop,
+                    weather_data,
+                    {"ph": soil_ph, "moisture": soil_moisture}
+                )
+                
+                if isinstance(prediction, dict):
+                    st.success(f"Predicted Yield: {prediction['predicted_yield']} tons/acre")
+                    st.info(f"Prediction Confidence: {prediction['confidence']}%")
 
 if __name__ == "__main__":
     main()

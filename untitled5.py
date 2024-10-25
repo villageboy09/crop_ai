@@ -84,16 +84,18 @@ class StreamlitCropDiseaseAnalyzer:
             st.error(f"Error fetching weather data: {str(e)}")
             return None
 
-    def calculate_growth_stage(self, sowing_date, crop):
-        """Calculate the current growth stage based on sowing date"""
-        days_since_sowing = (datetime.now() - sowing_date).days
-        accumulated_days = 0
-        
-        for stage, info in self.CROPS[crop]["stages"].items():
-            accumulated_days += info["duration"]
-            if days_since_sowing <= accumulated_days:
-                return stage
-        return "Mature"
+def calculate_growth_stage(self, sowing_date, crop):
+    """Calculate the current growth stage based on sowing date"""
+    today = datetime.now().date()  # Convert current datetime to date
+    days_since_sowing = (today - sowing_date).days  # Now both are datetime.date
+    accumulated_days = 0
+
+    for stage, info in self.CROPS[crop]["stages"].items():
+        accumulated_days += info["duration"]
+        if days_since_sowing <= accumulated_days:
+            return stage
+    return "Mature"
+
 
     def calculate_npk_requirements(self, crop, location, acres, growth_stage):
         """Calculate NPK requirements based on location, area, and growth stage"""

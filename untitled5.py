@@ -193,6 +193,11 @@ class StreamlitCropDiseaseAnalyzer:
             st.error(f"Error during TTS conversion: {str(e)}")
             raise# ... (keep existing methods like query_gemini_api, text_to_speech, etc.)
 
+import streamlit as st
+from datetime import datetime, timedelta
+import asyncio
+import os
+
 def main():
     st.set_page_config(page_title="Enhanced Crop Disease Analyzer", page_icon="🌱", layout="wide")
     st.title("🌱 Enhanced Crop Disease Analyzer")
@@ -301,25 +306,24 @@ def main():
                 st.markdown(analysis_text)
                 
                 # Generate audio file
-                    # Generate audio file
-                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    audio_file = f"crop_disease_analysis_{selected_crop.lower()}_{timestamp}.mp3"
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                audio_file = f"crop_disease_analysis_{selected_crop.lower()}_{timestamp}.mp3"
 
-                    with st.spinner('Generating audio...'):
-                        asyncio.run(analyzer.text_to_speech(analysis_text, audio_file, selected_language))
+                with st.spinner('Generating audio...'):
+                    asyncio.run(analyzer.text_to_speech(analysis_text, audio_file, selected_language))
 
-                    # Audio player
-                    with open(audio_file, 'rb') as audio_data:
-                        st.audio(audio_data.read(), format='audio/mp3')
+                # Audio player
+                with open(audio_file, 'rb') as audio_data:
+                    st.audio(audio_data.read(), format='audio/mp3')
 
-                    # Download button
-                    st.markdown(get_binary_file_downloader_html(audio_file, 'Audio Summary'), unsafe_allow_html=True)
+                # Download button
+                st.markdown(get_binary_file_downloader_html(audio_file, 'Audio Summary'), unsafe_allow_html=True)
 
-                    # Clean up audio file
-                    try:
-                        os.remove(audio_file)
-                    except:
-                        pass
+                # Clean up audio file
+                try:
+                    os.remove(audio_file)
+                except:
+                    pass
             else:
                 st.error(analysis_text)
 

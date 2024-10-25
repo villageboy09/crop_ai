@@ -91,7 +91,55 @@ class StreamlitCropDiseaseAnalyzer:
 
         self.translator = Translator()
 
-    # ... (keep all the existing methods unchanged) ...
+    def get_weather_data(self, location):
+    """
+    Fetch current weather data from Visual Crossing Weather API
+    
+    Args:
+        location (str): Location string (e.g., "Delhi, India")
+        
+    Returns:
+        dict: Weather data containing temperature, humidity, windSpeed, and precipitation
+             Returns None if the API request fails
+    """
+    try:
+        # Construct the API URL
+        base_url = "https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline"
+        params = {
+            'unitGroup': 'metric',
+            'key': self.WEATHER_API_KEY,
+            'contentType': 'json',
+            'include': 'current'
+        }
+        
+        # Format the location for URL
+        formatted_location = location.replace(' ', '%20')
+        url = f"{base_url}/{formatted_location}"
+        
+        # Make the API request
+        response = requests.get(url, params=params)
+        response.raise_for_status()  # Raise exception for bad status codes
+        
+        # Parse the response
+        data = response.json()
+        current_conditions = data.get('currentConditions', {})
+        
+        # Extract relevant weather metrics
+        weather_data = {
+            'temperature': round(current_conditions.get('temp', 0), 1),
+            'humidity': round(current_conditions.get('humidity', 0), 1),
+            'windSpeed': round(current_conditions.get('windspeed', 0), 1),
+            'precipitation': round(current_conditions.get('precip', 0), 1)
+        }
+        
+        return weather_data
+        
+    except requests.exceptions.RequestException as e:
+        st.error(f"Error fetching weather data: {str(e)}")
+        return None
+    except (KeyError, ValueError) as e:
+        st.error(f"Error parsing weather data: {str(e)}")
+        return None# ... (keep all the existing methods unchanged) ...
 
 def get_binary_file_downloader_html(file_path, button_text):
     """Generate HTML for file download button"""

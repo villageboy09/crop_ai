@@ -12,320 +12,219 @@ import pandas as pd
 
 class StreamlitCropDiseaseAnalyzer:
     def __init__(self):
-        # API configurations
         self.API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent"
         self.API_KEY = st.secrets["gemini"]["api_key"]
         self.WEATHER_API_KEY = st.secrets["visual_crossing"]["api_key"]
+        self.IPAPI_URL = "https://ipapi.co/json/"
+        
         self.VOICES = {
             'Telugu': 'te-IN-ShrutiNeural',
             'English': 'en-US-AriaNeural',
             'Hindi': 'hi-IN-SwaraNeural'
         }
         
-        # Extended crop data with image URLs and growth stages
+        # Updated CROPS dictionary with actual image URLs and disease seasons
         self.CROPS = {
             "Tomato": {
-                "image": "https://example.com/tomato.jpg",
-                "stages": {
-                    "Seedling": {"duration": 20, "npk_multiplier": 0.5},
-                    "Vegetative": {"duration": 40, "npk_multiplier": 1.0},
-                    "Flowering": {"duration": 30, "npk_multiplier": 1.2},
-                    "Fruiting": {"duration": 40, "npk_multiplier": 1.5}
+                "image": "https://example.com/tomato.jpg",  # Replace with actual image URLs
+                "diseases": {
+                    "summer": ["Early Blight", "Leaf Spot"],
+                    "winter": ["Late Blight", "Powdery Mildew"],
+                    "monsoon": ["Bacterial Wilt", "Fungal Rot"]
                 }
             },
             "Potato": {
                 "image": "https://example.com/potato.jpg",
-                "stages": {
-                    "Sprouting": {"duration": 15, "npk_multiplier": 0.4},
-                    "Vegetative": {"duration": 30, "npk_multiplier": 1.0},
-                    "Tuber Formation": {"duration": 45, "npk_multiplier": 1.3},
-                    "Maturation": {"duration": 30, "npk_multiplier": 0.8}
-                }
-            },
-            "Rice": {
-                "image": "https://example.com/rice.jpg",
-                "stages": {
-                    "Seedling": {"duration": 20, "npk_multiplier": 0.6},
-                    "Tillering": {"duration": 30, "npk_multiplier": 1.2},
-                    "Panicle Formation": {"duration": 30, "npk_multiplier": 1.4},
-                    "Ripening": {"duration": 30, "npk_multiplier": 0.7}
-                }
-            },
-            "Wheat": {
-                "image": "https://example.com/wheat.jpg",
-                "stages": {
-                    "Germination": {"duration": 15, "npk_multiplier": 0.5},
-                    "Tillering": {"duration": 35, "npk_multiplier": 1.1},
-                    "Heading": {"duration": 30, "npk_multiplier": 1.3},
-                    "Ripening": {"duration": 40, "npk_multiplier": 0.8}
-                }
-            },
-            "Cotton": {
-                "image": "https://example.com/cotton.jpg",
-                "stages": {
-                    "Emergence": {"duration": 15, "npk_multiplier": 0.4},
-                    "Squaring": {"duration": 35, "npk_multiplier": 1.0},
-                    "Flowering": {"duration": 40, "npk_multiplier": 1.4},
-                    "Boll Development": {"duration": 50, "npk_multiplier": 1.2}
+                "diseases": {
+                    "summer": ["Common Scab", "Black Scurf"],
+                    "winter": ["Late Blight", "Early Blight"],
+                    "monsoon": ["Bacterial Wilt", "Soft Rot"]
                 }
             }
-        }
-
-        # Regional NPK requirements
-        self.REGIONAL_NPK = {
-            "North": {"N": 1.2, "P": 0.8, "K": 1.0},
-            "South": {"N": 0.9, "P": 1.1, "K": 1.2},
-            "East": {"N": 1.1, "P": 0.9, "K": 0.8},
-            "West": {"N": 1.0, "P": 1.0, "K": 1.0},
-            "Central": {"N": 1.1, "P": 1.0, "K": 0.9}
-        }
-
-        # Base NPK requirements for all crops
-        self.BASE_NPK_REQUIREMENTS = {
-            "Tomato": {"N": 120, "P": 80, "K": 100},
-            "Potato": {"N": 150, "P": 100, "K": 120},
-            "Rice": {"N": 100, "P": 50, "K": 80},
-            "Wheat": {"N": 130, "P": 60, "K": 90},
-            "Cotton": {"N": 140, "P": 70, "K": 110}
+            # Add more crops with their respective seasonal diseases
         }
 
         self.translator = Translator()
 
-    def get_weather_data(self, location):
-    """
-    Fetch current weather data from Visual Crossing Weather API
-    
-    Args:
-        location (str): Location string (e.g., "Delhi, India")
-        
-    Returns:
-        dict: Weather data containing temperature, humidity, windSpeed, and precipitation
-             Returns None if the API request fails
-    """
-    try:
-        # Construct the API URL
-        base_url = "https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline"
-        params = {
-            'unitGroup': 'metric',
-            'key': self.WEATHER_API_KEY,
-            'contentType': 'json',
-            'include': 'current'
-        }
-        
-        # Format the location for URL
-        formatted_location = location.replace(' ', '%20')
-        url = f"{base_url}/{formatted_location}"
-        
-        # Make the API request
-        response = requests.get(url, params=params)
-        response.raise_for_status()  # Raise exception for bad status codes
-        
-        # Parse the response
-        data = response.json()
-        current_conditions = data.get('currentConditions', {})
-        
-        # Extract relevant weather metrics
-        weather_data = {
-            'temperature': round(current_conditions.get('temp', 0), 1),
-            'humidity': round(current_conditions.get('humidity', 0), 1),
-            'windSpeed': round(current_conditions.get('windspeed', 0), 1),
-            'precipitation': round(current_conditions.get('precip', 0), 1)
-        }
-        
-        return weather_data
-        
-    except requests.exceptions.RequestException as e:
-        st.error(f"Error fetching weather data: {str(e)}")
-        return None
-    except (KeyError, ValueError) as e:
-        st.error(f"Error parsing weather data: {str(e)}")
-        return None# ... (keep all the existing methods unchanged) ...
+    def get_user_location(self):
+        """Auto-fetch user's location using IP-API"""
+        try:
+            response = requests.get(self.IPAPI_URL)
+            if response.status_code == 200:
+                data = response.json()
+                return {
+                    'city': data.get('city', ''),
+                    'region': data.get('region', ''),
+                    'country': data.get('country_name', ''),
+                    'latitude': data.get('latitude', 0),
+                    'longitude': data.get('longitude', 0)
+                }
+            return None
+        except Exception as e:
+            st.error(f"Error fetching location: {str(e)}")
+            return None
 
-def get_binary_file_downloader_html(file_path, button_text):
-    """Generate HTML for file download button"""
-    with open(file_path, 'rb') as f:
-        data = f.read()
-    b64 = base64.b64encode(data).decode()
-    button_uuid = f'download_button_{datetime.now().strftime("%Y%m%d_%H%M%S")}'
-    custom_css = f"""
-        <style>
-            #{button_uuid} {{
-                background-color: rgb(255, 255, 255);
-                color: rgb(38, 39, 48);
-                padding: 0.25em 0.38em;
-                position: relative;
-                text-decoration: none;
-                border-radius: 4px;
-                border-width: 1px;
-                border-style: solid;
-                border-color: rgb(230, 234, 241);
-                border-image: initial;
-            }}
-            #{button_uuid}:hover {{
-                border-color: rgb(246, 51, 102);
-                color: rgb(246, 51, 102);
-            }}
-        </style>
+    def get_current_season(self):
+        """Determine current season based on month"""
+        month = datetime.now().month
+        if 3 <= month <= 5:
+            return "summer"
+        elif 6 <= month <= 9:
+            return "monsoon"
+        else:
+            return "winter"
+
+    def query_gemini_api(self, crop, language, season):
+        """Query Gemini API for season-specific crop disease information"""
+        try:
+            # Get seasonal diseases for the crop
+            seasonal_diseases = self.CROPS[crop]["diseases"][season]
+            diseases_list = ", ".join(seasonal_diseases)
+            
+            prompt = f"""
+            Analyze and provide detailed information about the following seasonal diseases 
+            in {crop} cultivation during {season} season: {diseases_list}
+            
+            For each disease, include:
+            1. Symptoms
+            2. Favorable conditions
+            3. Prevention methods
+            4. Treatment options
+            
+            Provide the response in {language} language.
+            Format the response in a clear, structured way.
+            """
+
+            headers = {"Content-Type": "application/json"}
+            payload = {
+                "contents": [{
+                    "parts": [{"text": prompt}]
+                }]
+            }
+
+            url = f"{self.API_URL}?key={self.API_KEY}"
+            response = requests.post(url, headers=headers, json=payload)
+
+            if response.status_code == 200:
+                return response.json()["candidates"][0]["content"]["parts"][0]["text"]
+            else:
+                return f"Error: API returned status code {response.status_code}"
+
+        except Exception as e:
+            return f"Error querying API: {str(e)}"
+
+def create_crop_card(crop_name, image_url):
+    """Create a styled card for crop selection"""
+    card_html = f"""
+        <div style="
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 10px;
+            margin: 5px;
+            text-align: center;
+            cursor: pointer;
+            transition: transform 0.2s;
+            hover: transform: scale(1.05);
+        ">
+            <img src="{image_url}" style="width: 100%; height: 150px; object-fit: cover; border-radius: 4px;">
+            <h3 style="margin-top: 10px;">{crop_name}</h3>
+        </div>
     """
-    dl_link = custom_css + f'<a download="{os.path.basename(file_path)}" id="{button_uuid}" href="data:application/octet-stream;base64,{b64}">{button_text}</a><br></br>'
-    return dl_link
+    return card_html
 
 def main():
-    st.set_page_config(page_title="Enhanced Crop Disease Analyzer", page_icon="🌱", layout="wide")
-    st.title("🌱 Enhanced Crop Disease Analyzer")
+    st.set_page_config(page_title="Smart Crop Disease Analyzer", page_icon="🌱", layout="wide")
+    st.title("🌱 Smart Crop Disease Analyzer")
     
     analyzer = StreamlitCropDiseaseAnalyzer()
 
-    # Sidebar inputs
-    with st.sidebar:
-        st.header("Configuration")
-        selected_language = st.selectbox("Select Language", list(analyzer.VOICES.keys()))
-        location = st.text_input("Enter your location (City, State)", "Delhi, India")
-        acres = st.number_input("Enter area in acres", min_value=0.1, value=1.0, step=0.1)
-        sowing_date = st.date_input(
-            "Select sowing date",
-            datetime.now() - timedelta(days=30)
-        )
+    # Auto-fetch user location
+    user_location = analyzer.get_user_location()
+    if user_location:
+        location_str = f"{user_location['city']}, {user_location['region']}, {user_location['country']}"
+        st.sidebar.success(f"📍 Location detected: {location_str}")
+    else:
+        location_str = st.sidebar.text_input("Enter your location", "Delhi, India")
 
-    # Improved crop selection with columns and images
-    st.subheader("Select a Crop")
-    
-    # Calculate number of rows needed (2 crops per row)
-    num_crops = len(analyzer.CROPS)
-    num_rows = (num_crops + 1) // 2
+    # Language selection
+    selected_language = st.sidebar.selectbox("Select Language", list(analyzer.VOICES.keys()))
+
+    # Get current season
+    current_season = analyzer.get_current_season()
+    st.sidebar.info(f"Current Season: {current_season.capitalize()}")
+
+    # Create crop selection grid
+    st.subheader("Select a Crop for Analysis")
+    cols = st.columns(4)  # Create 4 columns for the grid
     
     selected_crop = None
-    
-    # Create grid layout
-    for row in range(num_rows):
-        col1, col2 = st.columns(2)
-        
-        # First crop in the row
-        idx = row * 2
-        if idx < num_crops:
-            crop = list(analyzer.CROPS.keys())[idx]
-            with col1:
-                st.image(
-                    "https://picsum.photos/200/150",  # Placeholder image
-                    caption=crop,
-                    use_column_width=True
-                )
-                if st.button(f"Select {crop}", key=f"crop_{idx}"):
-                    selected_crop = crop
-        
-        # Second crop in the row
-        idx = row * 2 + 1
-        if idx < num_crops:
-            crop = list(analyzer.CROPS.keys())[idx]
-            with col2:
-                st.image(
-                    "https://picsum.photos/200/150",  # Placeholder image
-                    caption=crop,
-                    use_column_width=True
-                )
-                if st.button(f"Select {crop}", key=f"crop_{idx}"):
-                    selected_crop = crop
+    for idx, (crop, data) in enumerate(analyzer.CROPS.items()):
+        with cols[idx % 4]:
+            card_html = create_crop_card(crop, data["image"])
+            if st.markdown(card_html, unsafe_allow_html=True):
+                selected_crop = crop
 
-    # Analysis section
     if selected_crop:
         st.markdown(f"## Analysis for {selected_crop}")
-        
-        # Create tabs for different analysis sections
-        tabs = st.tabs(["Weather", "Growth Stage", "Fertilizer", "Disease Analysis"])
-        
-        with tabs[0]:
-            # Weather analysis
-            weather_data = analyzer.get_weather_data(location)
-            if weather_data:
-                st.subheader("Current Weather Conditions")
-                
-                col1, col2, col3, col4 = st.columns(4)
-                metrics = [
-                    ("Temperature", f"{weather_data['temperature']}°C"),
-                    ("Humidity", f"{weather_data['humidity']}%"),
-                    ("Wind Speed", f"{weather_data['windSpeed']} km/h"),
-                    ("Precipitation", f"{weather_data['precipitation']} mm")
-                ]
-                
-                for col, (label, value) in zip([col1, col2, col3, col4], metrics):
-                    with col:
-                        st.metric(label, value)
-                
-                # Weather alerts
-                if weather_data['humidity'] > 80:
-                    st.warning("⚠️ High humidity detected - Monitor for disease risk")
-                if weather_data['precipitation'] > 10:
-                    st.warning("⚠️ Significant rainfall - Check drainage systems")
-        
-        with tabs[1]:
-            # Growth stage analysis
-            growth_stage = analyzer.calculate_growth_stage(
-                datetime.combine(sowing_date, datetime.min.time()),
-                selected_crop
-            )
-            st.info(f"Current Growth Stage: {growth_stage}")
+
+        # Fetch and display weather data
+        weather_data = analyzer.get_weather_data(location_str)
+        if weather_data:
+            st.subheader("Current Weather Conditions")
             
-            # Add growth stage timeline
-            stages = list(analyzer.CROPS[selected_crop]["stages"].keys())
-            current_stage_idx = stages.index(growth_stage)
-            
-            # Create progress bars for each stage
-            for idx, stage in enumerate(stages):
-                if idx < current_stage_idx:
-                    st.progress(1.0, text=stage)
-                elif idx == current_stage_idx:
-                    st.progress(0.5, text=f"Current: {stage}")
-                else:
-                    st.progress(0.0, text=stage)
-        
-        with tabs[2]:
-            # Fertilizer recommendations
-            npk_req = analyzer.calculate_npk_requirements(
-                selected_crop, 
-                location, 
-                acres,
-                growth_stage
-            )
-            
-            st.subheader("Fertilizer Recommendations")
-            col1, col2, col3 = st.columns(3)
+            col1, col2, col3, col4 = st.columns(4)
             with col1:
-                st.metric("Nitrogen (N)", f"{npk_req['N']:.1f} kg/acre")
+                st.metric("Temperature", f"{weather_data['temperature']}°C")
             with col2:
-                st.metric("Phosphorus (P)", f"{npk_req['P']:.1f} kg/acre")
+                st.metric("Humidity", f"{weather_data['humidity']}%")
             with col3:
-                st.metric("Potassium (K)", f"{npk_req['K']:.1f} kg/acre")
-        
-        with tabs[3]:
-            # Disease analysis
-            with st.spinner(f'Analyzing diseases for {selected_crop}...'):
-                analysis_text = analyzer.query_gemini_api(selected_crop, selected_language)
+                st.metric("Wind Speed", f"{weather_data['windSpeed']} km/h")
+            with col4:
+                st.metric("Precipitation", f"{weather_data['precipitation']} mm")
+
+            # Weather alerts
+            if weather_data['humidity'] > 80:
+                st.warning("⚠️ High humidity alert - Increased disease risk")
+
+        # Get and display season-specific disease analysis
+        with st.spinner(f'Analyzing seasonal diseases for {selected_crop}...'):
+            analysis_text = analyzer.query_gemini_api(
+                selected_crop, 
+                selected_language,
+                current_season
+            )
+            
+            if "Error:" not in analysis_text:
+                st.markdown(analysis_text)
                 
-                if "Error:" not in analysis_text:
-                    st.markdown(analysis_text)
-                    
-                    # Generate audio file
-                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    audio_file = f"crop_disease_analysis_{selected_crop.lower()}_{timestamp}.mp3"
-                    
-                    with st.spinner('Generating audio...'):
-                        asyncio.run(analyzer.text_to_speech(analysis_text, audio_file, selected_language))
-                    
-                    # Audio player and download
-                    with open(audio_file, 'rb') as audio_data:
-                        st.audio(audio_data.read(), format='audio/mp3')
-                        st.markdown(
-                            get_binary_file_downloader_html(audio_file, 'Download Audio Summary'),
-                            unsafe_allow_html=True
-                        )
-                    
-                    # Cleanup
-                    try:
-                        os.remove(audio_file)
-                    except:
-                        pass
-                else:
-                    st.error(analysis_text)
+                # Generate audio summary
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                audio_file = f"crop_analysis_{selected_crop.lower()}_{timestamp}.mp3"
+                
+                with st.spinner('Generating audio summary...'):
+                    asyncio.run(analyzer.text_to_speech(
+                        analysis_text,
+                        audio_file,
+                        selected_language
+                    ))
+                
+                # Audio player and download option
+                with open(audio_file, 'rb') as audio_data:
+                    st.audio(audio_data.read(), format='audio/mp3')
+                    st.download_button(
+                        label="Download Audio Summary",
+                        data=audio_data,
+                        file_name=audio_file,
+                        mime="audio/mp3"
+                    )
+                
+                # Cleanup
+                try:
+                    os.remove(audio_file)
+                except:
+                    pass
+            else:
+                st.error(analysis_text)
 
 if __name__ == "__main__":
     main()

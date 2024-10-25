@@ -24,17 +24,52 @@ class StreamlitCropDiseaseAnalyzer:
         
         # Crop data with image URLs and growth stages
         self.CROPS = {
-            "Tomato": {
-                "image": "https://picsum.photos/200/300",
-                "stages": {
-                    "Seedling": {"duration": 20, "npk_multiplier": 0.5},
-                    "Vegetative": {"duration": 40, "npk_multiplier": 1.0},
-                    "Flowering": {"duration": 30, "npk_multiplier": 1.2},
-                    "Fruiting": {"duration": 40, "npk_multiplier": 1.5}
-                }
-            },
-            # Add similar structure for other crops
+    "Rice": {
+        "image": "https://picsum.photos/200/300?random=1",
+        "stages": {
+            "Seedling": {"duration": 25, "npk_multiplier": 0.4},
+            "Vegetative": {"duration": 50, "npk_multiplier": 0.9},
+            "Flowering": {"duration": 30, "npk_multiplier": 1.2},
+            "Maturing": {"duration": 35, "npk_multiplier": 1.4}
         }
+    },
+    "Maize": {
+        "image": "https://picsum.photos/200/300?random=2",
+        "stages": {
+            "Seedling": {"duration": 20, "npk_multiplier": 0.5},
+            "Vegetative": {"duration": 45, "npk_multiplier": 1.0},
+            "Flowering": {"duration": 30, "npk_multiplier": 1.3},
+            "Maturing": {"duration": 35, "npk_multiplier": 1.6}
+        }
+    },
+    "Sorghum": {
+        "image": "https://picsum.photos/200/300?random=3",
+        "stages": {
+            "Seedling": {"duration": 22, "npk_multiplier": 0.5},
+            "Vegetative": {"duration": 40, "npk_multiplier": 1.0},
+            "Flowering": {"duration": 25, "npk_multiplier": 1.2},
+            "Maturing": {"duration": 30, "npk_multiplier": 1.4}
+        }
+    },
+    "Cotton": {
+        "image": "https://picsum.photos/200/300?random=4",
+        "stages": {
+            "Seedling": {"duration": 25, "npk_multiplier": 0.6},
+            "Vegetative": {"duration": 45, "npk_multiplier": 1.1},
+            "Flowering": {"duration": 30, "npk_multiplier": 1.5},
+            "Boll Formation": {"duration": 35, "npk_multiplier": 1.8}
+        }
+    },
+    "Groundnut": {
+        "image": "https://picsum.photos/200/300?random=5",
+        "stages": {
+            "Seedling": {"duration": 20, "npk_multiplier": 0.5},
+            "Vegetative": {"duration": 40, "npk_multiplier": 1.0},
+            "Flowering": {"duration": 25, "npk_multiplier": 1.2},
+            "Pod Formation": {"duration": 30, "npk_multiplier": 1.5}
+        }
+    }
+}
 
         # NPK requirements by region (example values - replace with actual data from maps)
         self.REGIONAL_NPK = {

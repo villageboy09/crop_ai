@@ -192,6 +192,13 @@ class StreamlitCropDiseaseAnalyzer:
         except Exception as e:
             st.error(f"Error during TTS conversion: {str(e)}")
             raise# ... (keep existing methods like query_gemini_api, text_to_speech, etc.)
+    def get_binary_file_downloader_html(file_path, file_name):
+    """Generate a download link for a binary file."""
+    with open(file_path, "rb") as f:
+        file_bytes = f.read()
+    b64 = base64.b64encode(file_bytes).decode()  # Convert to base64
+    return f'<a href="data:file/unknown;base64,{b64}" download="{file_name}">Download {file_name}</a>'
+
 
 import streamlit as st
 from datetime import datetime, timedelta

@@ -1,14 +1,11 @@
 import streamlit as st
 import asyncio
 import edge_tts
-from datetime import datetime, timedelta
 import requests
 import os
-import base64
+from datetime import datetime
 from googletrans import Translator
-import json
 from PIL import Image
-import pandas as pd
 
 class StreamlitCropDiseaseAnalyzer:
     def __init__(self):
@@ -23,10 +20,10 @@ class StreamlitCropDiseaseAnalyzer:
             'Hindi': 'hi-IN-SwaraNeural'
         }
         
-        # Updated CROPS dictionary with actual image URLs and disease seasons
+        # Updated CROPS dictionary with disease seasons and placeholder images
         self.CROPS = {
             "Tomato": {
-                "image": "https://example.com/tomato.jpg",  # Replace with actual image URLs
+                "image": "https://via.placeholder.com/300x200.png?text=Tomato",
                 "diseases": {
                     "summer": ["Early Blight", "Leaf Spot"],
                     "winter": ["Late Blight", "Powdery Mildew"],
@@ -34,52 +31,59 @@ class StreamlitCropDiseaseAnalyzer:
                 }
             },
             "Potato": {
-                "image": "https://example.com/potato.jpg",
+                "image": "https://via.placeholder.com/300x200.png?text=Potato",
                 "diseases": {
                     "summer": ["Common Scab", "Black Scurf"],
                     "winter": ["Late Blight", "Early Blight"],
                     "monsoon": ["Bacterial Wilt", "Soft Rot"]
                 }
             }
-            # Add more crops with their respective seasonal diseases
         }
 
         self.translator = Translator()
-   def get_weather_data(self, location):
+
+    async def text_to_speech(self, text, output_file, language):
+        """Generate speech from text using edge-tts"""
+        try:
+            voice = self.VOICES.get(language, 'en-US-AriaNeural')
+            communicate = edge_tts.Communicate(text, voice)
+            await communicate.save(output_file)
+            return True
+        except Exception as e:
+            st.error(f"Error generating speech: {str(e)}")
+            return False
+
+    def get_weather_data(self, location):
         """Fetch weather data from Visual Crossing API"""
         try:
-            # Base URL for Visual Crossing Weather API
             base_url = "https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline"
             
-            # Parameters for the API request
             params = {
                 'unitGroup': 'metric',
                 'key': self.WEATHER_API_KEY,
                 'contentType': 'json',
-                'include': 'current,days',
-                'elements': 'temp,humidity,conditions,precip,cloudcover,windspeed,pressure'
+                'include': 'current',
+                'elements': 'temp,humidity,conditions,precip,cloudcover,windspeed'
             }
             
-            # Clean location string and construct the full URL
             clean_location = location.replace(' ', '').replace(',', '/')
-            url = f"{base_url}/{clean_location}/today"
+            url = f"{base_url}/{clean_location}"
             
-            # Make the API request
             response = requests.get(url, params=params)
             
             if response.status_code == 200:
                 data = response.json()
+                current = data.get('currentConditions', {})
                 return {
-                    'temperature': data['days'][0]['temp'],
-                    'humidity': data['days'][0]['humidity'],
-                    'conditions': data['days'][0]['conditions'],
-                    'precipitation': data['days'][0].get('precip', 0),
-                    'cloudCover': data['days'][0].get('cloudcover', 0),
-                    'windSpeed': data['days'][0].get('windspeed', 0),
-                    'pressure': data['days'][0].get('pressure', 0)
+                    'temperature': current.get('temp', 0),
+                    'humidity': current.get('humidity', 0),
+                    'conditions': current.get('conditions', ''),
+                    'precipitation': current.get('precip', 0),
+                    'cloudCover': current.get('cloudcover', 0),
+                    'windSpeed': current.get('windspeed', 0)
                 }
             else:
-                st.error(f"Weather API Error: Status {response.status_code}")
+                st.error(f"Weather API Error: {response.status_code}")
                 return None
         except Exception as e:
             st.error(f"Error fetching weather data: {str(e)}")
@@ -88,7 +92,7 @@ class StreamlitCropDiseaseAnalyzer:
     def get_user_location(self):
         """Auto-fetch user's location using IP-API"""
         try:
-            response = requests.get(self.IPAPI_URL)
+            response = requests.get(self.IPAPI_URL, timeout=5)
             if response.status_code == 200:
                 data = response.json()
                 return {
@@ -116,7 +120,6 @@ class StreamlitCropDiseaseAnalyzer:
     def query_gemini_api(self, crop, language, season):
         """Query Gemini API for season-specific crop disease information"""
         try:
-            # Get seasonal diseases for the crop
             seasonal_diseases = self.CROPS[crop]["diseases"][season]
             diseases_list = ", ".join(seasonal_diseases)
             
@@ -134,15 +137,18 @@ class StreamlitCropDiseaseAnalyzer:
             Format the response in a clear, structured way.
             """
 
-            headers = {"Content-Type": "application/json"}
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self.API_KEY}"
+            }
+            
             payload = {
                 "contents": [{
                     "parts": [{"text": prompt}]
                 }]
             }
 
-            url = f"{self.API_URL}?key={self.API_KEY}"
-            response = requests.post(url, headers=headers, json=payload)
+            response = requests.post(self.API_URL, headers=headers, json=payload)
 
             if response.status_code == 200:
                 return response.json()["candidates"][0]["content"]["parts"][0]["text"]
@@ -154,116 +160,138 @@ class StreamlitCropDiseaseAnalyzer:
 
 def create_crop_card(crop_name, image_url):
     """Create a styled card for crop selection"""
-    card_html = f"""
+    return f"""
         <div style="
             border: 1px solid #ddd;
             border-radius: 8px;
             padding: 10px;
             margin: 5px;
             text-align: center;
-            cursor: pointer;
-            transition: transform 0.2s;
-            hover: transform: scale(1.05);
+            background-color: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         ">
-            <img src="{image_url}" style="width: 100%; height: 150px; object-fit: cover; border-radius: 4px;">
-            <h3 style="margin-top: 10px;">{crop_name}</h3>
+            <img src="{image_url}" 
+                style="width: 100%; 
+                       height: 150px; 
+                       object-fit: cover; 
+                       border-radius: 4px;">
+            <h3 style="margin-top: 10px; color: #2c3e50;">{crop_name}</h3>
         </div>
     """
-    return card_html
 
 def main():
-    st.set_page_config(page_title="Smart Crop Disease Analyzer", page_icon="🌱", layout="wide")
+    st.set_page_config(
+        page_title="Smart Crop Disease Analyzer",
+        page_icon="🌱",
+        layout="wide",
+        initial_sidebar_state="expanded"
+    )
+    
     st.title("🌱 Smart Crop Disease Analyzer")
     
     analyzer = StreamlitCropDiseaseAnalyzer()
 
-    # Auto-fetch user location
-    user_location = analyzer.get_user_location()
-    if user_location:
-        location_str = f"{user_location['city']}, {user_location['region']}, {user_location['country']}"
-        st.sidebar.success(f"📍 Location detected: {location_str}")
-    else:
-        location_str = st.sidebar.text_input("Enter your location", "Delhi, India")
+    # Sidebar configuration
+    with st.sidebar:
+        st.header("Settings")
+        
+        # Auto-fetch user location
+        user_location = analyzer.get_user_location()
+        if user_location and user_location['city']:
+            location_str = f"{user_location['city']}, {user_location['region']}, {user_location['country']}"
+            st.success(f"📍 Location detected: {location_str}")
+            location = st.text_input("Or enter different location:", location_str)
+        else:
+            location = st.text_input("Enter your location:", "Delhi, India")
 
-    # Language selection
-    selected_language = st.sidebar.selectbox("Select Language", list(analyzer.VOICES.keys()))
+        # Language selection
+        selected_language = st.selectbox(
+            "Select Language",
+            list(analyzer.VOICES.keys()),
+            index=list(analyzer.VOICES.keys()).index("English")
+        )
 
-    # Get current season
-    current_season = analyzer.get_current_season()
-    st.sidebar.info(f"Current Season: {current_season.capitalize()}")
+        # Display current season
+        current_season = analyzer.get_current_season()
+        st.info(f"🗓️ Current Season: {current_season.capitalize()}")
 
-    # Create crop selection grid
+    # Main content area
     st.subheader("Select a Crop for Analysis")
-    cols = st.columns(4)  # Create 4 columns for the grid
     
+    # Create crop selection grid
+    cols = st.columns(len(analyzer.CROPS))
     selected_crop = None
+    
     for idx, (crop, data) in enumerate(analyzer.CROPS.items()):
-        with cols[idx % 4]:
-            card_html = create_crop_card(crop, data["image"])
-            if st.markdown(card_html, unsafe_allow_html=True):
+        with cols[idx]:
+            if st.markdown(create_crop_card(crop, data["image"]), unsafe_allow_html=True):
+                selected_crop = crop
+            if st.button(f"Analyze {crop}"):
                 selected_crop = crop
 
     if selected_crop:
         st.markdown(f"## Analysis for {selected_crop}")
 
-        # Fetch and display weather data
-        weather_data = analyzer.get_weather_data(location_str)
+        # Weather data display
+        weather_data = analyzer.get_weather_data(location)
         if weather_data:
-            st.subheader("Current Weather Conditions")
+            st.subheader("☁️ Current Weather Conditions")
             
-            col1, col2, col3, col4 = st.columns(4)
-            with col1:
-                st.metric("Temperature", f"{weather_data['temperature']}°C")
-            with col2:
-                st.metric("Humidity", f"{weather_data['humidity']}%")
-            with col3:
-                st.metric("Wind Speed", f"{weather_data['windSpeed']} km/h")
-            with col4:
-                st.metric("Precipitation", f"{weather_data['precipitation']} mm")
+            cols = st.columns(4)
+            with cols[0]:
+                st.metric("🌡️ Temperature", f"{weather_data['temperature']}°C")
+            with cols[1]:
+                st.metric("💧 Humidity", f"{weather_data['humidity']}%")
+            with cols[2]:
+                st.metric("🌬️ Wind Speed", f"{weather_data['windSpeed']} km/h")
+            with cols[3]:
+                st.metric("🌧️ Precipitation", f"{weather_data['precipitation']} mm")
 
-            # Weather alerts
+            # Weather risk assessment
             if weather_data['humidity'] > 80:
-                st.warning("⚠️ High humidity alert - Increased disease risk")
+                st.warning("⚠️ High humidity alert - Increased risk of fungal diseases")
+            if weather_data['temperature'] > 30:
+                st.warning("⚠️ High temperature alert - Monitor for heat stress")
 
-        # Get and display season-specific disease analysis
+        # Disease analysis
         with st.spinner(f'Analyzing seasonal diseases for {selected_crop}...'):
-            analysis_text = analyzer.query_gemini_api(
+            analysis = analyzer.query_gemini_api(
                 selected_crop, 
                 selected_language,
                 current_season
             )
             
-            if "Error:" not in analysis_text:
-                st.markdown(analysis_text)
+            if "Error:" not in analysis:
+                st.markdown(analysis)
                 
-                # Generate audio summary
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                audio_file = f"crop_analysis_{selected_crop.lower()}_{timestamp}.mp3"
+                # Audio generation
+                audio_file = f"temp_audio_{datetime.now().strftime('%Y%m%d_%H%M%S')}.mp3"
                 
                 with st.spinner('Generating audio summary...'):
-                    asyncio.run(analyzer.text_to_speech(
-                        analysis_text,
+                    success = asyncio.run(analyzer.text_to_speech(
+                        analysis,
                         audio_file,
                         selected_language
                     ))
                 
-                # Audio player and download option
-                with open(audio_file, 'rb') as audio_data:
-                    st.audio(audio_data.read(), format='audio/mp3')
-                    st.download_button(
-                        label="Download Audio Summary",
-                        data=audio_data,
-                        file_name=audio_file,
-                        mime="audio/mp3"
-                    )
-                
-                # Cleanup
-                try:
-                    os.remove(audio_file)
-                except:
-                    pass
+                if success:
+                    with open(audio_file, 'rb') as audio_data:
+                        audio_bytes = audio_data.read()
+                        st.audio(audio_bytes, format='audio/mp3')
+                        st.download_button(
+                            label="📥 Download Audio Summary",
+                            data=audio_bytes,
+                            file_name=f"{selected_crop}_analysis.mp3",
+                            mime="audio/mp3"
+                        )
+                    
+                    # Cleanup
+                    try:
+                        os.remove(audio_file)
+                    except Exception:
+                        pass
             else:
-                st.error(analysis_text)
+                st.error(analysis)
 
 if __name__ == "__main__":
     main()

@@ -1,11 +1,10 @@
 streamlit
-plotly
-edge-tts
-firebase-admin
-geopy
-geocoder
-geolocator
-python-dotenv
+pandas
+numpy
 requests
-tensorflow
-opencv-python
+Pillow
+googletrans==3.1.0a0
+tensorflow  # Optional, for disease detection
+opencv-python  # Optional, for image processing
+scikit-learn  # Optional, for yield prediction
+plotly  # Optional, for interactive visualizations

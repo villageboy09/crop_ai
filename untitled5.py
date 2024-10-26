@@ -1,16 +1,18 @@
 import streamlit as st
 import asyncio
 import edge_tts
-from datetime import datetime
+from datetime import datetime, timedelta
 import requests
 import os
 import base64
 from googletrans import Translator
 import json
 from PIL import Image
+import pandas as pd
 
 class StreamlitCropDiseaseAnalyzer:
     def __init__(self):
+        # Existing API configurations
         self.API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent"
         self.API_KEY = st.secrets["gemini"]["api_key"]
         self.WEATHER_API_KEY = st.secrets["visual_crossing"]["api_key"]
@@ -20,59 +22,56 @@ class StreamlitCropDiseaseAnalyzer:
             'Hindi': 'hi-IN-SwaraNeural'
         }
         
+        # Crop data with image URLs and growth stages
         self.CROPS = {
-            "Rice": {
-                "image": "https://cdn.britannica.com/89/140889-050-EC3F00BF/Ripening-heads-rice-Oryza-sativa.jpg",
-                "description": "A staple food crop grown in flooded fields",
-                "stages": {
-                    "Seedling": {"duration": 25, "npk_multiplier": 0.4},
-                    "Vegetative": {"duration": 50, "npk_multiplier": 0.9},
-                    "Flowering": {"duration": 30, "npk_multiplier": 1.2},
-                    "Maturing": {"duration": 35, "npk_multiplier": 1.4}
-                }
-            },
-            "Maize": {
-                "image": "https://encrypted-tbn2.gstatic.com/images?q=tbn:ANd9GcTSQTwY5H90hpRERbth6Y70s48hYKQQ3EimRbhVpGTe_zCHc0II",
-                "description": "Also known as corn, a versatile grain crop",
-                "stages": {
-                    "Seedling": {"duration": 20, "npk_multiplier": 0.5},
-                    "Vegetative": {"duration": 45, "npk_multiplier": 1.0},
-                    "Flowering": {"duration": 30, "npk_multiplier": 1.3},
-                    "Maturing": {"duration": 35, "npk_multiplier": 1.6}
-                }
-            },
-            "Sorghum": {
-                "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQFyoo17z6OwjPUWoBWrKNMEfJf1Cd4wpx5atIJGCgtZU8E9zPQ",
-                "description": "Drought-resistant cereal grain",
-                "stages": {
-                    "Seedling": {"duration": 22, "npk_multiplier": 0.5},
-                    "Vegetative": {"duration": 40, "npk_multiplier": 1.0},
-                    "Flowering": {"duration": 25, "npk_multiplier": 1.2},
-                    "Maturing": {"duration": 30, "npk_multiplier": 1.4}
-                }
-            },
-            "Cotton": {
-                "image": "https://cdn.britannica.com/18/156618-050-39339EA2/cotton-harvesting.jpg",
-                "description": "Important fiber crop",
-                "stages": {
-                    "Seedling": {"duration": 25, "npk_multiplier": 0.6},
-                    "Vegetative": {"duration": 45, "npk_multiplier": 1.1},
-                    "Flowering": {"duration": 30, "npk_multiplier": 1.5},
-                    "Boll Formation": {"duration": 35, "npk_multiplier": 1.8}
-                }
-            },
-            "Groundnut": {
-                "image": "https://encrypted-tbn.gstatic.com/images?q=tbn:ANd9GcQX4-OuVBESIfeRVCsFnLstkRLvDRAUpeSlGA&s",
-                "description": "Legume crop rich in protein and oil",
-                "stages": {
-                    "Seedling": {"duration": 20, "npk_multiplier": 0.5},
-                    "Vegetative": {"duration": 40, "npk_multiplier": 1.0},
-                    "Flowering": {"duration": 25, "npk_multiplier": 1.2},
-                    "Pod Formation": {"duration": 30, "npk_multiplier": 1.5}
-                }
-            }
+    "Rice": {
+        "image": "https://cdn.britannica.com/89/140889-050-EC3F00BF/Ripening-heads-rice-Oryza-sativa.jpg",
+        "stages": {
+            "Seedling": {"duration": 25, "npk_multiplier": 0.4},
+            "Vegetative": {"duration": 50, "npk_multiplier": 0.9},
+            "Flowering": {"duration": 30, "npk_multiplier": 1.2},
+            "Maturing": {"duration": 35, "npk_multiplier": 1.4}
         }
+    },
+    "Maize": {
+        "image": "https://encrypted-tbn2.gstatic.com/images?q=tbn:ANd9GcTSQTwY5H90hpRERbth6Y70s48hYKQQ3EimRbhVpGTe_zCHc0II",
+        "stages": {
+            "Seedling": {"duration": 20, "npk_multiplier": 0.5},
+            "Vegetative": {"duration": 45, "npk_multiplier": 1.0},
+            "Flowering": {"duration": 30, "npk_multiplier": 1.3},
+            "Maturing": {"duration": 35, "npk_multiplier": 1.6}
+        }
+    },
+    "Sorghum": {
+        "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQFyoo17z6OwjPUWoBWrKNMEfJf1Cd4wpx5atIJGCgtZU8E9zPQ",
+        "stages": {
+            "Seedling": {"duration": 22, "npk_multiplier": 0.5},
+            "Vegetative": {"duration": 40, "npk_multiplier": 1.0},
+            "Flowering": {"duration": 25, "npk_multiplier": 1.2},
+            "Maturing": {"duration": 30, "npk_multiplier": 1.4}
+        }
+    },
+    "Cotton": {
+        "image": "https://cdn.britannica.com/18/156618-050-39339EA2/cotton-harvesting.jpg",
+        "stages": {
+            "Seedling": {"duration": 25, "npk_multiplier": 0.6},
+            "Vegetative": {"duration": 45, "npk_multiplier": 1.1},
+            "Flowering": {"duration": 30, "npk_multiplier": 1.5},
+            "Boll Formation": {"duration": 35, "npk_multiplier": 1.8}
+        }
+    },
+    "Groundnut": {
+        "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQX4-OuVBESIfeRVCsFnLstkRLvDRAUpeSlGA&s",
+        "stages": {
+            "Seedling": {"duration": 20, "npk_multiplier": 0.5},
+            "Vegetative": {"duration": 40, "npk_multiplier": 1.0},
+            "Flowering": {"duration": 25, "npk_multiplier": 1.2},
+            "Pod Formation": {"duration": 30, "npk_multiplier": 1.5}
+        }
+    }
+}
 
+        # NPK requirements by region (example values - replace with actual data from maps)
         self.REGIONAL_NPK = {
             "North": {"N": 1.2, "P": 0.8, "K": 1.0},
             "South": {"N": 0.9, "P": 1.1, "K": 1.2},
@@ -82,171 +81,290 @@ class StreamlitCropDiseaseAnalyzer:
         }
 
         self.BASE_NPK_REQUIREMENTS = {
-            "Rice": {"N": 100, "P": 50, "K": 80},
-            "Maize": {"N": 120, "P": 60, "K": 100},
-            "Sorghum": {"N": 90, "P": 40, "K": 70},
-            "Cotton": {"N": 110, "P": 70, "K": 90},
-            "Groundnut": {"N": 80, "P": 60, "K": 70}
+                "Rice": {"N": 100, "P": 50, "K": 80},
+    "Maize": {"N": 120, "P": 60, "K": 100},
+    "Sorghum": {"N": 90, "P": 40, "K": 70},
+    "Cotton": {"N": 110, "P": 70, "K": 90},
+    "Groundnut": {"N": 80, "P": 60, "K": 70}
+            # ... other crops
         }
 
         self.translator = Translator()
 
     def get_weather_data(self, location):
+        """Fetch weather data from Visual Crossing API"""
         try:
-            formatted_location = location.replace(" ", "%20")
-            url = f"https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/{formatted_location}/today?unitGroup=metric&key={self.WEATHER_API_KEY}&contentType=json"
-            response = requests.get(url)
-            if response.status_code != 200:
-                st.error(f"Weather API returned status code: {response.status_code}")
-                return None
-            data = response.json()
-            current_conditions = data.get('days', [{}])[0]
-            return {
-                'temperature': round(current_conditions.get('temp', 0), 1),
-                'humidity': round(current_conditions.get('humidity', 0), 1),
-                'windSpeed': round(current_conditions.get('windspeed', 0), 1),
-                'precipitation': round(current_conditions.get('precip', 0), 2)
+            # Base URL for Visual Crossing Weather API
+            base_url = "https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline"
+            
+            # Parameters for the API request
+            params = {
+                'unitGroup': 'metric',
+                'key': self.WEATHER_API_KEY,
+                'contentType': 'json',
+                'include': 'current,days',
+                'elements': 'temp,humidity,conditions,precip,cloudcover,windspeed,pressure'
             }
-        except requests.RequestException as e:
+            
+            # Construct the full URL
+            url = f"{base_url}/{location}/today"
+            
+            # Make the API request
+            response = requests.get(url, params=params)
+            
+            if response.status_code == 200:
+                data = response.json()
+                return {
+                    'temperature': data['days'][0]['temp'],
+                    'humidity': data['days'][0]['humidity'],
+                    'conditions': data['days'][0]['conditions'],
+                    'precipitation': data['days'][0].get('precip', 0),
+                    'cloudCover': data['days'][0].get('cloudcover', 0),
+                    'windSpeed': data['days'][0].get('windspeed', 0),
+                    'pressure': data['days'][0].get('pressure', 0)
+                }
+            else:
+                st.error(f"Weather API Error: Status {response.status_code}")
+                return None
+        except Exception as e:
             st.error(f"Error fetching weather data: {str(e)}")
             return None
-        except (KeyError, IndexError, ValueError) as e:
-            st.error(f"Error parsing weather data: {str(e)}")
-            return None
-        except Exception as e:
-            st.error(f"Unexpected error getting weather data: {str(e)}")
-            return None
 
-def calculate_growth_stage(self, sowing_date, crop):
-    if crop not in self.CROPS:
-        return "Unknown Stage"
-    # Convert sowing_date to datetime.datetime
-    sowing_datetime = datetime.combine(sowing_date, datetime.min.time())
-    days_since_sowing = (datetime.now() - sowing_datetime).days
-    stages = self.CROPS[crop]["stages"]
-    days_accumulated = 0
-    for stage, info in stages.items():
-        days_accumulated += info["duration"]
-        if days_since_sowing <= days_accumulated:
-            return stage
-    return list(stages.keys())[-1]
-
+    def calculate_growth_stage(self, sowing_date, crop):
+        """Calculate current growth stage based on sowing date"""
+        days_since_sowing = (datetime.now() - sowing_date).days
+        accumulated_days = 0
+        
+        for stage, info in self.CROPS[crop]["stages"].items():
+            accumulated_days += info["duration"]
+            if days_since_sowing <= accumulated_days:
+                return stage
+        return "Mature"
 
     def calculate_npk_requirements(self, crop, location, acres, growth_stage):
-        if crop not in self.BASE_NPK_REQUIREMENTS:
-            return {"N": 0, "P": 0, "K": 0}
+        """Calculate NPK requirements based on location, area, and growth stage"""
         base_npk = self.BASE_NPK_REQUIREMENTS[crop]
-        region = self._determine_region(location)
-        regional_multipliers = self.REGIONAL_NPK.get(region, {"N": 1.0, "P": 1.0, "K": 1.0})
-        stage_multiplier = self.CROPS[crop]["stages"].get(growth_stage, {}).get("npk_multiplier", 1.0)
-        npk_requirements = {
-            nutrient: base_amount * regional_multipliers[nutrient] * stage_multiplier * acres
-            for nutrient, base_amount in base_npk.items()
+        regional_multiplier = self.REGIONAL_NPK[self.get_region(location)]
+        stage_multiplier = self.CROPS[crop]["stages"][growth_stage]["npk_multiplier"]
+        
+        return {
+            "N": base_npk["N"] * regional_multiplier["N"] * stage_multiplier * acres,
+            "P": base_npk["P"] * regional_multiplier["P"] * stage_multiplier * acres,
+            "K": base_npk["K"] * regional_multiplier["K"] * stage_multiplier * acres
         }
-        return npk_requirements
 
-    def _determine_region(self, location):
-        city_regions = {
-            'delhi': 'North',
-            'mumbai': 'West',
-            'kolkata': 'East',
-            'chennai': 'South',
-            'bangalore': 'South',
-            'hyderabad': 'South',
-            'ahmedabad': 'West',
-            'pune': 'West',
-            'jaipur': 'North',
-            'lucknow': 'North',
-            'bhopal': 'Central',
-            'patna': 'East'
-        }
-        city = location.split(',')[0].strip().lower()
-        return city_regions.get(city, 'Central')
+    def get_region(self, location):
+        """Determine region based on location (simplified example)"""
+        # This should be replaced with actual region determination logic
+        # possibly using geocoding and region boundary data
+        return "North"  # Default return
 
-    def query_gemini(self, input_text):
-        headers = {
-            'Authorization': f'Bearer {self.API_KEY}',
-            'Content-Type': 'application/json'
-        }
-        data = {
-            "prompt": input_text,
-            "maxTokens": 300,
-            "temperature": 0.7
-        }
-        response = requests.post(self.API_URL, headers=headers, json=data)
-        if response.status_code != 200:
-            st.error(f"Gemini API returned status code: {response.status_code}")
-            return None
-        response_data = response.json()
-        return response_data.get('text', '')
+    def get_weather_based_recommendations(self, weather_data, crop, growth_stage):
+        """Generate recommendations based on weather conditions"""
+        recommendations = []
+        
+        if weather_data["temperature"] > 30:
+            recommendations.append("High temperature detected. Increase irrigation frequency.")
+        elif weather_data["temperature"] < 15:
+            recommendations.append("Low temperature detected. Consider protective measures.")
+            
+        if weather_data["humidity"] > 80:
+            recommendations.append("High humidity may increase disease risk. Ensure good ventilation.")
+        
+        return recommendations
 
-    async def text_to_speech(self, text, language):
-        voice = self.VOICES.get(language, self.VOICES['English'])
-        communicate = edge_tts.Communicate(text, voice=voice)
-        await communicate.save("audio.mp3")
-        with open("audio.mp3", "rb") as audio_file:
-            b64_audio = base64.b64encode(audio_file.read()).decode()
-        return f'''
-            <audio controls>
-                <source src="data:audio/mpeg;base64,{b64_audio}" type="audio/mpeg">
-                Your browser does not support the audio element.
-            </audio>
-        '''
+    def query_gemini_api(self, crop, language):
+        """Query Gemini API for crop disease information in specified language"""
+        try:
+            headers = {
+                "Content-Type": "application/json"
+            }
 
-    def main(self):
-        st.title("Crop Disease Analyzer")
-        st.sidebar.title("Navigation")
-        selected = st.sidebar.selectbox("Choose an option", ["Analyze Crop Disease", "Weather Data", "NPK Requirements"])
+            # Adjust prompt based on language
+            base_prompt = f"""
+            Analyze and provide detailed information about common diseases in {crop} cultivation.
+            For each disease, include:
+            1. Disease name
+            2. Symptoms
+            3. Favorable conditions
+            4. Prevention methods
+            5. Treatment options
+            
+            Provide the response in {language} language.
+            Format the response in a clear, structured way.
+            """
 
-        if selected == "Analyze Crop Disease":
-            crop = st.selectbox("Select Crop", list(self.CROPS.keys()))
-            sowing_date = st.date_input("Select Sowing Date", datetime.now())
-            location = st.text_input("Enter Location")
+            payload = {
+                "contents": [{
+                    "parts": [{
+                        "text": base_prompt
+                    }]
+                }]
+            }
 
-            if st.button("Analyze"):
-                growth_stage = self.calculate_growth_stage(sowing_date, crop)
-                st.write(f"Current Growth Stage: {growth_stage}")
-                st.write(self.CROPS[crop]["description"])
-                st.image(self.CROPS[crop]["image"])
+            url = f"{self.API_URL}?key={self.API_KEY}"
+            response = requests.post(url, headers=headers, json=payload)
 
-                disease_input = st.text_input("Describe the symptoms")
-                if st.button("Get Disease Analysis"):
-                    analysis_result = self.query_gemini(disease_input)
-                    if analysis_result:
-                        st.write("Disease Analysis Result:")
-                        st.write(analysis_result)
+            if response.status_code == 200:
+                return response.json()["candidates"][0]["content"]["parts"][0]["text"]
+            else:
+                error_msg = f"Error: API returned status code {response.status_code}"
+                try:
+                    error_detail = response.json()
+                    error_msg += f"\nDetails: {error_detail.get('error', {}).get('message', 'No details available')}"
+                except:
+                    pass
+                return error_msg
 
-        elif selected == "Weather Data":
-            location = st.text_input("Enter Location")
-            if st.button("Get Weather Data"):
-                weather_data = self.get_weather_data(location)
-                if weather_data:
-                    st.write("Weather Data:")
-                    st.write(f"Temperature: {weather_data['temperature']}°C")
-                    st.write(f"Humidity: {weather_data['humidity']}%")
-                    st.write(f"Wind Speed: {weather_data['windSpeed']} km/h")
-                    st.write(f"Precipitation: {weather_data['precipitation']} mm")
+        except Exception as e:
+            return f"Error querying API: {str(e)}"
 
-        elif selected == "NPK Requirements":
-            crop = st.selectbox("Select Crop", list(self.CROPS.keys()))
-            acres = st.number_input("Enter Acres", min_value=1, value=1)
-            location = st.text_input("Enter Location")
-            growth_stage = st.selectbox("Select Growth Stage", list(self.CROPS[crop]["stages"].keys()))
+    async def text_to_speech(self, text, output_file, language):
+        """Convert text to speech using edge-tts"""
+        voice = self.VOICES[language]
+        try:
+            clean_text = " ".join(word for word in text.split() if not word.startswith("#"))
+            communicate = edge_tts.Communicate(clean_text, voice)
+            await communicate.save(output_file)
+        except Exception as e:
+            st.error(f"Error during TTS conversion: {str(e)}")
+            raise
 
-            if st.button("Calculate NPK"):
-                npk_requirements = self.calculate_npk_requirements(crop, location, acres, growth_stage)
-                st.write(f"NPK Requirements for {crop}:")
-                st.write(f"Nitrogen: {npk_requirements['N']} kg")
-                st.write(f"Phosphorus: {npk_requirements['P']} kg")
-                st.write(f"Potassium: {npk_requirements['K']} kg")
+    def get_binary_file_downloader_html(self, file_path, file_name):
+        """Generate a download link for a binary file."""
+        with open(file_path, "rb") as f:
+            file_bytes = f.read()
+        b64 = base64.b64encode(file_bytes).decode()  # Convert to base64
+        return f'<a href="data:file/unknown;base64,{b64}" download="{file_name}">Download {file_name}</a>'
 
-        st.sidebar.header("Text to Speech")
-        text = st.text_input("Enter text for TTS")
-        language = st.selectbox("Select Language", list(self.VOICES.keys()))
-        if st.button("Convert to Speech"):
-            audio_html = asyncio.run(self.text_to_speech(text, language))
-            st.markdown(audio_html, unsafe_allow_html=True)
+def main():
+    st.set_page_config(page_title="Enhanced Crop Disease Analyzer", page_icon="🌱", layout="wide")
+    st.title("🌱 AI Based Kisok Platform For Farmers")
+    
+    analyzer = StreamlitCropDiseaseAnalyzer()
+
+    # Language selection
+    selected_language = st.sidebar.selectbox("Select Language", list(analyzer.VOICES.keys()))
+
+    # Location input
+    location = st.sidebar.text_input("Enter your location (City, State)", "Delhi, India")
+    acres = st.sidebar.number_input("Enter area in acres", min_value=0.1, value=1.0, step=0.1)
+    
+    # Date selection
+    sowing_date = st.sidebar.date_input(
+        "Select sowing date",
+        datetime.now() - timedelta(days=30)
+    )
+
+    # Create crop selection grid
+    st.subheader("Select a Crop")
+    cols = st.columns(5)
+    selected_crop = None
+    
+    for idx, (crop, data) in enumerate(analyzer.CROPS.items()):
+        with cols[idx % 5]:
+            if st.button(crop, key=f"crop_{idx}"):
+                selected_crop = crop
+            st.image(data["image"], caption=crop, use_column_width=True)
+
+    if selected_crop:
+        st.markdown(f"## Analysis for {selected_crop}")
+
+        # Fetch and display weather data
+        weather_data = analyzer.get_weather_data(location)
+        if weather_data:
+            st.subheader("Current Weather Conditions")
+            
+            # Create two rows of metrics for weather data
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.metric("Temperature", f"{weather_data['temperature']}°C")
+            with col2:
+                st.metric("Humidity", f"{weather_data['humidity']}%")
+            with col3:
+                st.metric("Wind Speed", f"{weather_data['windSpeed']} km/h")
+            with col4:
+                st.metric("Precipitation", f"{weather_data['precipitation']} mm")
+                
+            # Second row of weather metrics
+            col5, col6, col7, col8 = st.columns(4)
+            with col5:
+                st.metric("Cloud Cover", f"{weather_data['cloudCover']}%")
+            with col6:
+                st.metric("Pressure", f"{weather_data['pressure']} mb")
+            with col7:
+                st.metric("Conditions", weather_data['conditions'])
+            
+            # Weather-based alerts
+            if weather_data['humidity'] > 80:
+                st.warning("⚠️ High humidity detected - Monitor for disease risk")
+            if weather_data['precipitation'] > 10:
+                st.warning("⚠️ Significant rainfall - Check drainage systems")
+
+        # Calculate and display growth stage
+        growth_stage = analyzer.calculate_growth_stage(
+            datetime.combine(sowing_date, datetime.min.time()),
+            selected_crop
+        )
+        st.info(f"Current Growth Stage: {growth_stage}")
+
+        # Calculate and display NPK requirements
+        npk_req = analyzer.calculate_npk_requirements(
+            selected_crop, 
+            location, 
+            acres,
+            growth_stage
+        )
+        
+        st.subheader("Fertilizer Recommendations")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Nitrogen (N)", f"{npk_req['N']:.1f} kg/acre")
+        with col2:
+            st.metric("Phosphorus (P)", f"{npk_req['P']:.1f} kg/acre")
+        with col3:
+            st.metric("Potassium (K)", f"{npk_req['K']:.1f} kg/acre")
+
+        # Display weather-based recommendations
+        if weather_data:
+            recommendations = analyzer.get_weather_based_recommendations(
+                weather_data,
+                selected_crop,
+                growth_stage
+            )
+            if recommendations:
+                st.subheader("Weather-based Recommendations")
+                for rec in recommendations:
+                    st.write(f"• {rec}")
+
+        # Continue with disease analysis and audio generation
+        with st.spinner(f'Analyzing diseases for {selected_crop}...'):
+            analysis_text = analyzer.query_gemini_api(selected_crop, selected_language)
+            
+            if "Error:" not in analysis_text:
+                st.markdown(analysis_text)
+                
+                # Generate audio file
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                audio_file = f"crop_disease_analysis_{selected_crop.lower()}_{timestamp}.mp3"
+
+                with st.spinner('Generating audio...'):
+                    asyncio.run(analyzer.text_to_speech(analysis_text, audio_file, selected_language))
+
+                # Audio player
+                with open(audio_file, 'rb') as audio_data:
+                    st.audio(audio_data.read(), format='audio/mp3')
+
+                # Download button - Fixed to use the analyzer instance
+                st.markdown(analyzer.get_binary_file_downloader_html(audio_file, 'Audio Summary'), unsafe_allow_html=True)
+
+                # Clean up audio file
+                try:
+                    os.remove(audio_file)
+                except:
+                    pass
+            else:
+                st.error(analysis_text)
 
 if __name__ == "__main__":
-    analyzer = StreamlitCropDiseaseAnalyzer()
-    analyzer.main()
+    main()

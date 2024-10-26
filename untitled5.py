@@ -248,7 +248,7 @@ class StreamlitCropDiseaseAnalyzer:
         return f'<a href="data:file/unknown;base64,{b64}" download="{file_name}">Download {file_name}</a>'
 
     def search_youtube_videos(self, crop, max_results=6):
-    try:
+        try:
         # Create a focused search query for farming videos
         search_query = f"{crop} farming cultivation guide"
         s = Search(search_query)
@@ -289,12 +289,13 @@ class StreamlitCropDiseaseAnalyzer:
             
         if not videos:
             return []
-            
+        
         return videos
         
     except Exception as e:
         st.error(f"Error searching YouTube videos: {str(e)}")
         return []
+
 
 
 def main():

@@ -3,15 +3,33 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 import requests
-import plotly.express as px
-import plotly.graph_objects as go
 from PIL import Image
 import io
-import tensorflow as tf
-import cv2
 import json
-from sklearn.ensemble import RandomForestRegressor
 from googletrans import Translator
+
+# Define a function to check and install required packages
+def check_dependencies():
+    missing_packages = []
+    optional_packages = {
+        'tensorflow': 'Deep learning for disease detection',
+        'cv2': 'Image processing',
+        'plotly': 'Interactive visualizations',
+        'sklearn': 'Machine learning for yield prediction'
+    }
+    
+    for package, description in optional_packages.items():
+        try:
+            __import__(package)
+        except ImportError:
+            missing_packages.append(f"- {package} ({description})")
+    
+    if missing_packages:
+        st.warning("Some optional features are disabled. To enable all features, install the following packages:")
+        st.code("pip install " + " ".join(optional_packages.keys()))
+        st.write("Missing packages:")
+        for package in missing_packages:
+            st.write(package)
 
 class SmartFarmingAssistant:
     def __init__(self):
@@ -31,7 +49,6 @@ class SmartFarmingAssistant:
         # Enhanced crop database with detailed parameters
         self.CROPS_DB = {
             "Rice": {
-                "image": "rice.jpg",
                 "optimal_conditions": {
                     "soil_ph": {"min": 5.5, "max": 6.5},
                     "temperature": {"min": 20, "max": 35},
@@ -65,34 +82,43 @@ class SmartFarmingAssistant:
                     }
                 }
             },
-            # Add similar structure for other crops
         }
-        
-        # Initialize ML models
-        self.load_models()
         
         # Initialize translator
         self.translator = Translator()
         
         # Cache for optimization recommendations
         self.recommendations_cache = {}
+        
+        # Try to load ML models if dependencies are available
+        self.initialize_ml_components()
 
-    def load_models(self):
-        """Load or initialize ML models"""
+    def initialize_ml_components(self):
+        """Initialize ML components if dependencies are available"""
+        self.has_tensorflow = False
+        self.has_sklearn = False
+        
         try:
-            # Load disease detection model
+            import tensorflow as tf
             self.disease_model = tf.keras.models.load_model('models/disease_detection.h5')
+            self.has_tensorflow = True
+        except ImportError:
+            pass
             
-            # Initialize yield prediction model
+        try:
+            from sklearn.ensemble import RandomForestRegressor
             self.yield_model = RandomForestRegressor()
-            # In production, load pretrained model
-            
-        except Exception as e:
-            st.error(f"Error loading models: {str(e)}")
+            self.has_sklearn = True
+        except ImportError:
+            pass
 
     def detect_disease(self, image):
         """Detect crop diseases from image"""
+        if not self.has_tensorflow:
+            return "Disease detection requires TensorFlow. Please install it using: pip install tensorflow"
+            
         try:
+            import cv2
             # Preprocess image
             img = cv2.resize(image, (224, 224))
             img = img / 255.0
@@ -101,11 +127,16 @@ class SmartFarmingAssistant:
             # Make prediction
             pred = self.disease_model.predict(img)
             return self.process_disease_prediction(pred)
+        except ImportError:
+            return "OpenCV (cv2) is required for image processing. Please install it using: pip install opencv-python"
         except Exception as e:
             return f"Error in disease detection: {str(e)}"
 
     def predict_yield(self, crop, weather_data, soil_data):
         """Predict crop yield based on conditions"""
+        if not self.has_sklearn:
+            return "Yield prediction requires scikit-learn. Please install it using: pip install scikit-learn"
+            
         try:
             # Prepare features
             features = self.prepare_features(weather_data, soil_data)
@@ -120,6 +151,15 @@ class SmartFarmingAssistant:
         except Exception as e:
             return f"Error in yield prediction: {str(e)}"
 
+    def get_weather_forecast(self, location):
+        """Fetch weather forecast data"""
+        try:
+            url = f"https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/{location}?key={self.WEATHER_API_KEY}"
+            response = requests.get(url)
+            return response.json()
+        except Exception as e:
+            return f"Error fetching weather data: {str(e)}"
+
     def get_optimization_recommendations(self, crop, conditions, language='en'):
         """Generate resource optimization recommendations"""
         cache_key = f"{crop}_{language}"
@@ -132,9 +172,9 @@ class SmartFarmingAssistant:
             current = conditions
             
             recommendations = {
-                'water': self.optimize_water_usage(optimal, current),
-                'fertilizer': self.optimize_fertilizer_usage(optimal, current),
-                'pesticide': self.optimize_pesticide_usage(crop, current)
+                'water': self.calculate_water_recommendation(optimal, current),
+                'fertilizer': self.calculate_fertilizer_recommendation(optimal, current),
+                'pesticide': self.calculate_pesticide_recommendation(crop, current)
             }
             
             # Translate recommendations if needed
@@ -147,38 +187,59 @@ class SmartFarmingAssistant:
         except Exception as e:
             return f"Error generating recommendations: {str(e)}"
 
-    def optimize_water_usage(self, optimal, current):
-        """Calculate optimal water usage"""
-        # Implementation of water optimization logic
-        pass
-
-    def optimize_fertilizer_usage(self, optimal, current):
-        """Calculate optimal fertilizer usage"""
-        # Implementation of fertilizer optimization logic
-        pass
-
-    def optimize_pesticide_usage(self, crop, conditions):
-        """Calculate optimal pesticide usage"""
-        # Implementation of pesticide optimization logic
-        pass
-
-    def get_weather_forecast(self, location):
-        """Fetch weather forecast data"""
+    def calculate_water_recommendation(self, optimal, current):
+        """Calculate water recommendation based on conditions"""
         try:
-            url = f"https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/{location}?key={self.WEATHER_API_KEY}"
-            response = requests.get(url)
-            return response.json()
+            rainfall = current.get('rainfall', 0)
+            humidity = current.get('humidity', 0)
+            temperature = current.get('temperature', 0)
+            
+            # Basic water requirement calculation
+            base_requirement = 100  # Base water requirement in mm
+            
+            # Adjust based on rainfall
+            rainfall_adjustment = max(0, base_requirement - rainfall)
+            
+            # Adjust based on temperature and humidity
+            temp_factor = max(1, (temperature - 20) * 0.1)  # Increase requirement for higher temperatures
+            humidity_factor = max(0.5, 1 - (humidity / 100))  # Decrease requirement for higher humidity
+            
+            final_requirement = rainfall_adjustment * temp_factor * humidity_factor
+            
+            return {
+                'recommendation': f"Water requirement: {final_requirement:.1f} mm",
+                'details': {
+                    'base_requirement': base_requirement,
+                    'rainfall_adjustment': rainfall_adjustment,
+                    'temperature_factor': temp_factor,
+                    'humidity_factor': humidity_factor
+                }
+            }
         except Exception as e:
-            return f"Error fetching weather data: {str(e)}"
+            return f"Error calculating water recommendation: {str(e)}"
 
-    def analyze_soil_image(self, image):
-        """Analyze soil quality from image"""
-        try:
-            # Implement soil analysis logic
-            # This could use another ML model specific to soil analysis
-            pass
-        except Exception as e:
-            return f"Error in soil analysis: {str(e)}"
+    def calculate_fertilizer_recommendation(self, optimal, current):
+        """Calculate fertilizer recommendation"""
+        # Implement basic fertilizer calculation logic
+        return {
+            'recommendation': "Apply balanced NPK fertilizer",
+            'details': {
+                'N': "40 kg/ha",
+                'P': "20 kg/ha",
+                'K': "20 kg/ha"
+            }
+        }
+
+    def calculate_pesticide_recommendation(self, crop, conditions):
+        """Calculate pesticide recommendation"""
+        # Implement basic pesticide recommendation logic
+        return {
+            'recommendation': "Monitor for common pests",
+            'details': {
+                'preventive': "Regular inspection recommended",
+                'threshold': "Apply only when pest damage exceeds 10%"
+            }
+        }
 
 def main():
     st.set_page_config(
@@ -187,6 +248,9 @@ def main():
         layout="wide"
     )
     
+    # Check dependencies first
+    check_dependencies()
+    
     # Initialize the assistant
     assistant = SmartFarmingAssistant()
     
@@ -194,34 +258,28 @@ def main():
     with st.sidebar:
         st.title("🌾 Smart Farming Assistant")
         
-        # Language selection
         selected_language = st.selectbox(
             "Select Language",
             list(assistant.LANGUAGES.keys())
         )
         
-        # Location input
         location = st.text_input("Enter Location", "Delhi, India")
         
-        # Crop selection
         selected_crop = st.selectbox(
             "Select Crop",
             list(assistant.CROPS_DB.keys())
         )
         
-        # Area input
         area = st.number_input("Field Area (acres)", 0.1, 100.0, 1.0)
         
-        # Farming type
         farming_type = st.selectbox(
             "Farming Type",
             ["Traditional", "Organic", "Mixed"]
         )
 
-    # Main content area
+    # Main content
     st.title("Precision Farming Optimization")
     
-    # Create tabs for different features
     tabs = st.tabs([
         "📊 Dashboard",
         "🌱 Crop Monitor",
@@ -234,29 +292,20 @@ def main():
     with tabs[0]:
         st.header("Farm Dashboard")
         
-        # Weather information
-        col1, col2, col3 = st.columns(3)
-        
         weather_data = assistant.get_weather_forecast(location)
         if isinstance(weather_data, dict):
+            col1, col2, col3 = st.columns(3)
             with col1:
                 st.metric("Temperature", f"{weather_data['currentConditions']['temp']}°C")
             with col2:
                 st.metric("Humidity", f"{weather_data['currentConditions']['humidity']}%")
             with col3:
                 st.metric("Rainfall", f"{weather_data['currentConditions']['precip']} mm")
-        
-        # Crop status summary
-        st.subheader("Crop Status")
-        status_cols = st.columns(4)
-        
-        # Add crop status metrics
-        
+
     # Crop Monitor Tab
     with tabs[1]:
         st.header("Crop Health Monitor")
         
-        # Image upload for disease detection
         uploaded_file = st.file_uploader(
             "Upload crop image for disease detection",
             type=['jpg', 'jpeg', 'png']
@@ -268,7 +317,6 @@ def main():
             
             if st.button("Analyze Image"):
                 with st.spinner("Analyzing image..."):
-                    # Process image and show results
                     results = assistant.detect_disease(image)
                     st.write(results)
     
@@ -276,67 +324,43 @@ def main():
     with tabs[2]:
         st.header("Resource Optimization")
         
-        # Get current conditions
-        current_conditions = {
-            "temperature": weather_data['currentConditions']['temp'],
-            "humidity": weather_data['currentConditions']['humidity'],
-            "rainfall": weather_data['currentConditions']['precip']
-        }
-        
-        # Get optimization recommendations
-        recommendations = assistant.get_optimization_recommendations(
-            selected_crop,
-            current_conditions,
-            assistant.LANGUAGES[selected_language]
-        )
-        
-        # Display recommendations
-        if isinstance(recommendations, dict):
-            col1, col2, col3 = st.columns(3)
+        if isinstance(weather_data, dict):
+            current_conditions = {
+                "temperature": weather_data['currentConditions']['temp'],
+                "humidity": weather_data['currentConditions']['humidity'],
+                "rainfall": weather_data['currentConditions']['precip']
+            }
             
-            with col1:
-                st.subheader("💧 Water Usage")
-                st.write(recommendations['water'])
-                
-            with col2:
-                st.subheader("🌿 Fertilizer Usage")
-                st.write(recommendations['fertilizer'])
-                
-            with col3:
-                st.subheader("🔄 Pesticide Usage")
-                st.write(recommendations['pesticide'])
-    
-    # Soil Analysis Tab
-    with tabs[3]:
-        st.header("Soil Analysis")
-        
-        # Soil image upload
-        soil_image = st.file_uploader(
-            "Upload soil image for analysis",
-            type=['jpg', 'jpeg', 'png']
-        )
-        
-        if soil_image:
-            image = Image.open(soil_image)
-            st.image(image, caption="Soil Sample", use_column_width=True)
+            recommendations = assistant.get_optimization_recommendations(
+                selected_crop,
+                current_conditions,
+                assistant.LANGUAGES[selected_language]
+            )
             
-            if st.button("Analyze Soil"):
-                with st.spinner("Analyzing soil quality..."):
-                    # Process soil image and show results
-                    soil_results = assistant.analyze_soil_image(image)
-                    st.write(soil_results)
-    
+            if isinstance(recommendations, dict):
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    st.subheader("💧 Water Usage")
+                    st.write(recommendations['water']['recommendation'])
+                    
+                with col2:
+                    st.subheader("🌿 Fertilizer Usage")
+                    st.write(recommendations['fertilizer']['recommendation'])
+                    
+                with col3:
+                    st.subheader("🔄 Pesticide Usage")
+                    st.write(recommendations['pesticide']['recommendation'])
+
     # Yield Predictor Tab
     with tabs[4]:
         st.header("Yield Prediction")
         
-        # Collect additional data for yield prediction
         soil_ph = st.slider("Soil pH", 0.0, 14.0, 7.0)
         soil_moisture = st.slider("Soil Moisture (%)", 0, 100, 50)
         
         if st.button("Predict Yield"):
             with st.spinner("Calculating expected yield..."):
-                # Make yield prediction
                 prediction = assistant.predict_yield(
                     selected_crop,
                     weather_data,
@@ -346,6 +370,8 @@ def main():
                 if isinstance(prediction, dict):
                     st.success(f"Predicted Yield: {prediction['predicted_yield']} tons/acre")
                     st.info(f"Prediction Confidence: {prediction['confidence']}%")
+                else:
+                    st.warning(prediction)  # Show the error/installation message
 
 if __name__ == "__main__":
     main()

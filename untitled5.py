@@ -263,15 +263,19 @@ class StreamlitCropDiseaseAnalyzer:
                 video_id = re.search(r'(?:v=|\/)([0-9A-Za-z_-]{11}).*', video.watch_url)
                 if video_id:
                     video_id = video_id.group(1)
+                    # Use .get() to safely access attributes, providing default values if None
+                    duration = str(timedelta(seconds=video.length)) if video.length is not None else "N/A"
+                    views = f"{video.views:,}" if video.views is not None else "N/A"
+                    
                     videos.append({
                         'title': video.title,
                         'url': video.watch_url,
                         'thumbnail': f"https://img.youtube.com/vi/{video_id}/mqdefault.jpg",
-                        'duration': str(timedelta(seconds=video.length)) if video.length else "N/A",
-                        'views': f"{video.views:,}" if video.views else "N/A",
+                        'duration': duration,
+                        'views': views,
                         'embed_url': f"https://www.youtube.com/embed/{video_id}"
                     })
-                
+            
             return videos
         except Exception as e:
             st.error(f"Error searching YouTube videos: {str(e)}")

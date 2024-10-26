@@ -241,10 +241,11 @@ class StreamlitCropDiseaseAnalyzer:
 
 def main():
     # Configure the page with a dark theme and custom styles
-        st.set_page_config(
-        page_title="AI Kiosk Platform For Farmers",
-        page_icon="🌾",
-        layout="wide"
+       st.set_page_config(
+        page_title="Your Title",
+        page_icon=":shark:",
+        layout="wide",
+        initial_sidebar_state="expanded",
     )
 
     # Updated CSS with better text contrast and visibility

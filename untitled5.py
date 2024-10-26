@@ -294,6 +294,47 @@ class StreamlitCropDiseaseAnalyzer:
             st.write(f"Error searching YouTube videos: {str(e)}")  # Debug output
             return []
 
+self.IMAGE_DIR = "disease_images"
+
+    def fetch_disease_images(self, disease_name, num_images=3):
+        """Fetch disease images using Google Images Download package."""
+        response = google_images_download.googleimagesdownload()
+        arguments = {
+            "keywords": disease_name,
+            "limit": num_images,
+            "print_urls": False,
+            "format": "jpg",
+            "output_directory": self.IMAGE_DIR,
+            "no_directory": True
+        }
+        paths = response.download(arguments)
+        
+        # Retrieve downloaded image paths
+        image_files = paths[0].get(disease_name, [])
+        return image_files
+
+    def display_disease_images(self, disease_name):
+        """Display disease images in Streamlit."""
+        # Fetch images for the selected disease
+        image_files = self.fetch_disease_images(disease_name)
+        
+        if image_files:
+            st.write(f"Images for {disease_name}:")
+            for img_path in image_files:
+                st.image(Image.open(img_path), caption=disease_name, width=200)
+        else:
+            st.write("No images found for this disease.")
+
+    def show_disease_info_with_images(self, crop):
+        """Show disease info and images in Streamlit based on selected crop."""
+        disease_info = self.query_gemini_api(crop, "Hindi")  # Assuming Gemini API provides disease names
+        disease_names = [d["name"] for d in disease_info]  # Example extraction; adjust as per actual API output
+
+        # Display disease info with images
+        for disease_name in disease_names:
+            st.write(f"Disease: {disease_name}")
+            self.display_disease_images(disease_name)
+
 def main():
     # Configure the page with a custom theme and wide layout
     st.set_page_config(

@@ -380,7 +380,7 @@ def main():
     """, unsafe_allow_html=True)
 
 
-        analyzer analyzer = StreamlitCropDiseaseAnalyzer()
+        analyzer = StreamlitCropDiseaseAnalyzer()
 
     # Main header with gradient background
     st.markdown('<h1 class="main-header">🌾 AI Kiosk Platform For Farmers</h1>', unsafe_allow_html=True)

@@ -247,38 +247,35 @@ class StreamlitCropDiseaseAnalyzer:
         b64 = base64.b64encode(file_bytes).decode()  # Convert to base64
         return f'<a href="data:file/unknown;base64,{b64}" download="{file_name}">Download {file_name}</a>'
 
-    def search_youtube_videos(self, crop, category, max_results=5):
-        """
-        Search YouTube for videos related to the selected crop and category.
-        Returns a list of dictionaries containing video information.
-        """
-        try:
-            search_query = f"{crop} farming {self.VIDEO_CATEGORIES[category]}"
-            s = Search(search_query)
-            
-            videos = []
-            for video in s.results[:max_results]:
-                # Extract video ID from URL
-                video_id = re.search(r'(?:v=|\/)([0-9A-Za-z_-]{11}).*', video.watch_url)
-                if video_id:
-                    video_id = video_id.group(1)
-                else:
-                    continue
-                    
+    def search_youtube_videos(self, crop, max_results=6):
+    """
+    Search YouTube for videos related to the selected crop's farming practices.
+    Returns a list of dictionaries containing video information.
+    """
+    try:
+        # Create a focused search query for farming videos
+        search_query = f"{crop} farming cultivation techniques best practices"
+        s = Search(search_query)
+        
+        videos = []
+        for video in s.results[:max_results]:
+            # Extract video ID using regex
+            video_id = re.search(r'(?:v=|\/)([0-9A-Za-z_-]{11}).*', video.watch_url)
+            if video_id:
+                video_id = video_id.group(1)
                 videos.append({
                     'title': video.title,
                     'url': video.watch_url,
                     'thumbnail': f"https://img.youtube.com/vi/{video_id}/mqdefault.jpg",
-                    'duration': video.length,
-                    'views': video.views,
+                    'duration': str(timedelta(seconds=video.length)) if video.length else "N/A",
+                    'views': f"{video.views:,}" if video.views else "N/A",
                     'embed_url': f"https://www.youtube.com/embed/{video_id}"
                 })
             
-            return videos
-        except Exception as e:
-            st.error(f"Error searching YouTube videos: {str(e)}")
-            return []
-
+        return videos
+    except Exception as e:
+        st.error(f"Error searching YouTube videos: {str(e)}")
+        return []
 
 
 def main():
@@ -649,41 +646,33 @@ def main():
             else:
                 st.error(analysis_text)
                 st.markdown("### 📺 Educational Videos")
+    with st.spinner('Loading educational videos...'):
+        videos = analyzer.search_youtube_videos(selected_crop)
         
-        # Video category selection
-        video_category = st.selectbox(
-            "Select Video Category",
-            list(analyzer.VIDEO_CATEGORIES.keys()),
-            format_func=lambda x: x.title()
-        )
-        
-        # Search and display videos
-        with st.spinner('Searching for relevant videos...'):
-            videos = analyzer.search_youtube_videos(selected_crop, video_category)
-            
-            if videos:
-                video_cols = st.columns(3)
-                for idx, video in enumerate(videos):
-                    with video_cols[idx % 3]:
-                        st.markdown(f"""
-                            <div class='video-card'>
-                                <img src='{video["thumbnail"]}' class='video-thumbnail'>
-                                <div class='video-title'>{video["title"][:60]}...</div>
-                                <div class='video-stats'>
-                                    👁️ {video["views"]:,} views | ⏱️ {video["duration"]} seconds
-                                </div>
+        if videos:
+            video_cols = st.columns(3)
+            for idx, video in enumerate(videos):
+                with video_cols[idx % 3]:
+                    st.markdown(f"""
+                        <div class='video-card'>
+                            <img src='{video["thumbnail"]}' class='video-thumbnail'>
+                            <div class='video-title'>{video["title"][:60]}...</div>
+                            <div class='video-stats'>
+                                👁️ {video["views"]} views | ⏱️ {video["duration"]}
                             </div>
-                        """, unsafe_allow_html=True)
-                        
-                        # Embed video player
-                        st.components.v1.iframe(
-                            video["embed_url"],
-                            width=None,
-                            height=200,
-                            scrolling=False
-                        )
-            else:
-                st.warning("No videos found for the selected category. Try a different category.")
+                        </div>
+                    """, unsafe_allow_html=True)
+                    
+                    # Embed video player
+                    st.components.v1.iframe(
+                        video["embed_url"],
+                        width=None,
+                        height=200,
+                        scrolling=False
+                    )
+        else:
+            st.info("No videos found. Please check your internet connection or try again later.")
+
 
 if __name__ == "__main__":
     main()

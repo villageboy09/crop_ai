@@ -247,7 +247,7 @@ class StreamlitCropDiseaseAnalyzer:
         b64 = base64.b64encode(file_bytes).decode()  # Convert to base64
         return f'<a href="data:file/unknown;base64,{b64}" download="{file_name}">Download {file_name}</a>'
 
-    def search_youtube_videos(self, crop, max_results=6):
+    def search_youtube_videos(self, crop, max_results=2):  # Fetching 2 videos
         """
         Search YouTube for videos related to the selected crop's farming practices.
         Returns a list of dictionaries containing video information.
@@ -263,7 +263,8 @@ class StreamlitCropDiseaseAnalyzer:
                 video_id = re.search(r'(?:v=|\/)([0-9A-Za-z_-]{11}).*', video.watch_url)
                 if video_id:
                     video_id = video_id.group(1)
-                    # Use .get() to safely access attributes, providing default values if None
+                    
+                    # Use conditional checks to avoid NoneType issues
                     duration = str(timedelta(seconds=video.length)) if video.length is not None else "N/A"
                     views = f"{video.views:,}" if video.views is not None else "N/A"
                     
@@ -275,8 +276,12 @@ class StreamlitCropDiseaseAnalyzer:
                         'views': views,
                         'embed_url': f"https://www.youtube.com/embed/{video_id}"
                     })
+
+            if not videos:  # Check if no videos were found
+                st.warning("No videos found. Please check your internet connection or try again later.")
             
             return videos
+
         except Exception as e:
             st.error(f"Error searching YouTube videos: {str(e)}")
             return []

@@ -249,19 +249,18 @@ class StreamlitCropDiseaseAnalyzer:
 
 def search_youtube_videos(self, crop, max_results=6):
     try:
-        # Create a focused search query for farming videos
+        print(f"Searching for videos related to: {crop}")  # Debug output
         search_query = f"{crop} farming cultivation guide"
         s = Search(search_query)
 
         videos = []
         for video in s.results[:max_results]:
             try:
-                # Extract video ID using regex
+                print(f"Processing video: {video.title}")  # Debug output
                 video_id = re.search(r'(?:v=|\/)([0-9A-Za-z_-]{11}).*', video.watch_url)
                 if video_id:
                     video_id = video_id.group(1)
 
-                    # Safely handle None values for length and views
                     duration = "N/A"
                     if video.length is not None:
                         try:
@@ -285,9 +284,11 @@ def search_youtube_videos(self, crop, max_results=6):
                         'embed_url': f"https://www.youtube.com/embed/{video_id}"
                     })
             except Exception as e:
+                print(f"Error processing video: {str(e)}")  # Debug output
                 continue  # Skip videos that cause errors
 
         if not videos:
+            print("No videos found.")  # Debug output
             return []
 
         return videos
@@ -295,7 +296,6 @@ def search_youtube_videos(self, crop, max_results=6):
     except Exception as e:
         st.error(f"Error searching YouTube videos: {str(e)}")
         return []
-
 
 
 def main():

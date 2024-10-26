@@ -95,6 +95,24 @@ class StreamlitCropDiseaseAnalyzer:
 
         self.translator = Translator()
 
+def get_weather_data(self, location):
+    url = f"https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/weatherdata/forecast?location={location}&key={self.WEATHER_API_KEY}&include=days"
+    try:
+        response = requests.get(url)
+        response.raise_for_status()  # Raise an error for bad responses
+        data = response.json()
+        # Extract and return relevant weather data
+        return {
+            "temperature": data["currentConditions"]["temp"],
+            "humidity": data["currentConditions"]["humidity"],
+            "windSpeed": data["currentConditions"]["windspeed"],
+            "precipitation": data["currentConditions"]["precip"],
+        }
+    except requests.exceptions.RequestException as e:
+        st.error(f"Error fetching weather data: {e}")
+        return None
+
+
     # All other methods remain the same...
 
 def main():

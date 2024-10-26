@@ -238,77 +238,176 @@ class StreamlitCropDiseaseAnalyzer:
         return f'<a href="data:file/unknown;base64,{b64}" download="{file_name}">Download {file_name}</a>'
 
 def main():
-    st.set_page_config(page_title="Enhanced Crop Disease Analyzer", page_icon="🌱", layout="wide")
-    st.title("🌱 AI Based Kisok Platform For Farmers")
-    
-    analyzer = StreamlitCropDiseaseAnalyzer()
-
-    # Language selection
-    selected_language = st.sidebar.selectbox("Select Language", list(analyzer.VOICES.keys()))
-
-    # Location input
-    location = st.sidebar.text_input("Enter your location (City, State)", "Delhi, India")
-    acres = st.sidebar.number_input("Enter area in acres", min_value=0.1, value=1.0, step=0.1)
-    
-    # Date selection
-    sowing_date = st.sidebar.date_input(
-        "Select sowing date",
-        datetime.now() - timedelta(days=30)
+    # Configure the page with a custom theme and wide layout
+    st.set_page_config(
+        page_title="Smart Farmer Assistant",
+        page_icon="🌾",
+        layout="wide",
+        initial_sidebar_state="expanded"
     )
 
-    # Create crop selection grid
-    st.subheader("Select a Crop")
-    cols = st.columns(5)
+    # Custom CSS for better styling
+    st.markdown("""
+        <style>
+        .main {
+            padding: 2rem;
+            background-color: #f8f9fa;
+        }
+        .stButton>button {
+            width: 100%;
+            border-radius: 10px;
+            height: 3em;
+            background-color: #ffffff;
+            border: 1px solid #e0e0e0;
+            transition: all 0.3s ease;
+        }
+        .stButton>button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            background-color: #f0f8ff;
+        }
+        .crop-card {
+            background-color: white;
+            padding: 1rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        }
+        .crop-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .metric-card {
+            background-color: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .header-container {
+            padding: 2rem 0;
+            text-align: center;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            border-radius: 10px;
+            margin-bottom: 2rem;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
+    # Create header with gradient background
+    st.markdown("""
+        <div class='header-container'>
+            <h1>🌾 Smart Farmer Assistant</h1>
+            <p>Your AI-powered companion for smart farming</p>
+        </div>
+    """, unsafe_allow_html=True)
+
+    analyzer = StreamlitCropDiseaseAnalyzer()
+
+    # Create a cleaner sidebar
+    with st.sidebar:
+        st.markdown("### 🔧 Settings")
+        selected_language = st.selectbox(
+            "🌐 Select Language",
+            list(analyzer.VOICES.keys()),
+            format_func=lambda x: f"📢 {x}"
+        )
+        
+        st.markdown("### 📍 Location Details")
+        location = st.text_input(
+            "Location",
+            "Delhi, India",
+            help="Enter your city and state/country"
+        )
+        
+        acres = st.number_input(
+            "📏 Field Size (acres)",
+            min_value=0.1,
+            value=1.0,
+            step=0.1,
+            format="%.1f"
+        )
+        
+        st.markdown("### 📅 Crop Timeline")
+        sowing_date = st.date_input(
+            "Sowing Date",
+            datetime.now() - timedelta(days=30)
+        )
+
+    # Create a grid layout for crops with improved cards
+    st.markdown("### Select Your Crop")
+    col1, col2, col3, col4, col5 = st.columns(5)
+    cols = [col1, col2, col3, col4, col5]
     selected_crop = None
-    
+
     for idx, (crop, data) in enumerate(analyzer.CROPS.items()):
         with cols[idx % 5]:
-            if st.button(crop, key=f"crop_{idx}"):
+            st.markdown(f"""
+                <div class='crop-card'>
+                    <h4 style='text-align: center;'>{crop}</h4>
+                </div>
+            """, unsafe_allow_html=True)
+            if st.button("Select", key=f"crop_{idx}"):
                 selected_crop = crop
-            st.image(data["image"], caption=crop, use_column_width=True)
+            st.image(data["image"], use_column_width=True)
 
     if selected_crop:
-        st.markdown(f"## Analysis for {selected_crop}")
+        st.markdown(f"""
+            <div style='background-color: white; padding: 2rem; border-radius: 10px; margin: 2rem 0;'>
+                <h2 style='text-align: center;'>Analysis for {selected_crop}</h2>
+            </div>
+        """, unsafe_allow_html=True)
 
-        # Fetch and display weather data
+        # Weather data section with improved metrics
         weather_data = analyzer.get_weather_data(location)
         if weather_data:
-            st.subheader("Current Weather Conditions")
+            st.markdown("### 🌤️ Current Weather Conditions")
             
-            # Create two rows of metrics for weather data
             col1, col2, col3, col4 = st.columns(4)
-            with col1:
-                st.metric("Temperature", f"{weather_data['temperature']}°C")
-            with col2:
-                st.metric("Humidity", f"{weather_data['humidity']}%")
-            with col3:
-                st.metric("Wind Speed", f"{weather_data['windSpeed']} km/h")
-            with col4:
-                st.metric("Precipitation", f"{weather_data['precipitation']} mm")
-                
-            # Second row of weather metrics
-            col5, col6, col7, col8 = st.columns(4)
-            with col5:
-                st.metric("Cloud Cover", f"{weather_data['cloudCover']}%")
-            with col6:
-                st.metric("Pressure", f"{weather_data['pressure']} mb")
-            with col7:
-                st.metric("Conditions", weather_data['conditions'])
+            metrics = [
+                ("🌡️ Temperature", f"{weather_data['temperature']}°C"),
+                ("💧 Humidity", f"{weather_data['humidity']}%"),
+                ("💨 Wind Speed", f"{weather_data['windSpeed']} km/h"),
+                ("🌧️ Precipitation", f"{weather_data['precipitation']} mm")
+            ]
             
-            # Weather-based alerts
-            if weather_data['humidity'] > 80:
-                st.warning("⚠️ High humidity detected - Monitor for disease risk")
-            if weather_data['precipitation'] > 10:
-                st.warning("⚠️ Significant rainfall - Check drainage systems")
+            for col, (label, value) in zip([col1, col2, col3, col4], metrics):
+                with col:
+                    st.markdown(f"""
+                        <div class='metric-card'>
+                            <h4>{label}</h4>
+                            <h2>{value}</h2>
+                        </div>
+                    """, unsafe_allow_html=True)
 
-        # Calculate and display growth stage
+            # Weather alerts with improved styling
+            if weather_data['humidity'] > 80:
+                st.warning("⚠️ High Humidity Alert: Monitor crops for potential disease risks")
+            if weather_data['precipitation'] > 10:
+                st.warning("⚠️ Rainfall Alert: Ensure proper drainage systems are functioning")
+
+        # Growth stage indicator
         growth_stage = analyzer.calculate_growth_stage(
             datetime.combine(sowing_date, datetime.min.time()),
             selected_crop
         )
-        st.info(f"Current Growth Stage: {growth_stage}")
+        
+        st.markdown("### 🌱 Crop Growth Stage")
+        stages = list(analyzer.CROPS[selected_crop]["stages"].keys())
+        current_stage_idx = stages.index(growth_stage)
+        
+        progress_cols = st.columns(len(stages))
+        for idx, (col, stage) in enumerate(zip(progress_cols, stages)):
+            with col:
+                if idx < current_stage_idx:
+                    st.markdown(f"✅ {stage}")
+                elif idx == current_stage_idx:
+                    st.markdown(f"🔄 **{stage}** (Current)")
+                else:
+                    st.markdown(f"⏳ {stage}")
 
-        # Calculate and display NPK requirements
+        # NPK recommendations with improved visualization
         npk_req = analyzer.calculate_npk_requirements(
             selected_crop, 
             location, 
@@ -316,49 +415,53 @@ def main():
             growth_stage
         )
         
-        st.subheader("Fertilizer Recommendations")
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("Nitrogen (N)", f"{npk_req['N']:.1f} kg/acre")
-        with col2:
-            st.metric("Phosphorus (P)", f"{npk_req['P']:.1f} kg/acre")
-        with col3:
-            st.metric("Potassium (K)", f"{npk_req['K']:.1f} kg/acre")
+        st.markdown("### 🌿 Fertilizer Recommendations")
+        npk_cols = st.columns(3)
+        
+        nutrients = [
+            ("Nitrogen (N)", npk_req['N'], "#28a745"),
+            ("Phosphorus (P)", npk_req['P'], "#17a2b8"),
+            ("Potassium (K)", npk_req['K'], "#ffc107")
+        ]
+        
+        for col, (nutrient, value, color) in zip(npk_cols, nutrients):
+            with col:
+                st.markdown(f"""
+                    <div class='metric-card' style='border-left: 5px solid {color};'>
+                        <h4>{nutrient}</h4>
+                        <h2>{value:.1f} kg/acre</h2>
+                    </div>
+                """, unsafe_allow_html=True)
 
-        # Display weather-based recommendations
-        if weather_data:
-            recommendations = analyzer.get_weather_based_recommendations(
-                weather_data,
-                selected_crop,
-                growth_stage
-            )
-            if recommendations:
-                st.subheader("Weather-based Recommendations")
-                for rec in recommendations:
-                    st.write(f"• {rec}")
-
-        # Continue with disease analysis and audio generation
-        with st.spinner(f'Analyzing diseases for {selected_crop}...'):
+        # Disease analysis section
+        with st.spinner('Analyzing diseases...'):
             analysis_text = analyzer.query_gemini_api(selected_crop, selected_language)
             
             if "Error:" not in analysis_text:
-                st.markdown(analysis_text)
+                st.markdown("### 🔍 Disease Analysis")
+                with st.expander("View Detailed Analysis", expanded=True):
+                    st.markdown(analysis_text)
                 
-                # Generate audio file
+                # Audio generation
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 audio_file = f"crop_disease_analysis_{selected_crop.lower()}_{timestamp}.mp3"
 
-                with st.spinner('Generating audio...'):
+                with st.spinner('Generating audio summary...'):
                     asyncio.run(analyzer.text_to_speech(analysis_text, audio_file, selected_language))
 
-                # Audio player
+                # Audio player with improved styling
+                st.markdown("### 🎧 Audio Summary")
                 with open(audio_file, 'rb') as audio_data:
                     st.audio(audio_data.read(), format='audio/mp3')
 
-                # Download button - Fixed to use the analyzer instance
-                st.markdown(analyzer.get_binary_file_downloader_html(audio_file, 'Audio Summary'), unsafe_allow_html=True)
+                st.download_button(
+                    label="📥 Download Audio Summary",
+                    data=open(audio_file, 'rb'),
+                    file_name=audio_file,
+                    mime='audio/mp3'
+                )
 
-                # Clean up audio file
+                # Cleanup
                 try:
                     os.remove(audio_file)
                 except:

@@ -1,6 +1,6 @@
 streamlit==1.25.0
 plotly==5.16.1
-edge-tts==3.3.0
+edge-tts==6.1.15
 firebase-admin==6.1.0
 geopy==2.3.0
 geocoder==1.38.1

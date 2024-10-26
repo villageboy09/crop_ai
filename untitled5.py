@@ -246,21 +246,19 @@ class StreamlitCropDiseaseAnalyzer:
             file_bytes = f.read()
         b64 = base64.b64encode(file_bytes).decode()  # Convert to base64
         return f'<a href="data:file/unknown;base64,{b64}" download="{file_name}">Download {file_name}</a>'
-
 def search_youtube_videos(self, crop, max_results=6):
     try:
-        print(f"Searching for videos related to: {crop}")  # Debug output
+        print(f"Searching for videos related to: {crop}")
         search_query = f"{crop} farming cultivation guide"
         s = Search(search_query)
 
         videos = []
         for video in s.results[:max_results]:
             try:
-                print(f"Processing video: {video.title}")  # Debug output
+                print(f"Processing video: {video.title}")
                 video_id = re.search(r'(?:v=|\/)([0-9A-Za-z_-]{11}).*', video.watch_url)
                 if video_id:
                     video_id = video_id.group(1)
-
                     duration = "N/A"
                     if video.length is not None:
                         try:
@@ -284,11 +282,11 @@ def search_youtube_videos(self, crop, max_results=6):
                         'embed_url': f"https://www.youtube.com/embed/{video_id}"
                     })
             except Exception as e:
-                print(f"Error processing video: {str(e)}")  # Debug output
-                continue  # Skip videos that cause errors
+                print(f"Error processing video: {str(e)}")
+                continue
 
         if not videos:
-            print("No videos found.")  # Debug output
+            print("No videos found.")
             return []
 
         return videos
@@ -296,7 +294,6 @@ def search_youtube_videos(self, crop, max_results=6):
     except Exception as e:
         st.error(f"Error searching YouTube videos: {str(e)}")
         return []
-
 
 def main():
     # Configure the page with a custom theme and wide layout

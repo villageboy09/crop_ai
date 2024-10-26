@@ -248,7 +248,7 @@ class StreamlitCropDiseaseAnalyzer:
         return f'<a href="data:file/unknown;base64,{b64}" download="{file_name}">Download {file_name}</a>'
 
     def search_youtube_videos(self, crop, max_results=6):
-    """
+       """
     Search YouTube for videos related to the selected crop's farming practices.
     Returns a list of dictionaries containing video information.
     """

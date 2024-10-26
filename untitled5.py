@@ -80,6 +80,21 @@ class SmartFarmingAssistant:
         # Cache for optimization recommendations
         self.recommendations_cache = {}
 
+    def initialize_crop_database(self):
+        """Placeholder for crop database initialization"""
+        # Add your database initialization code here if necessary
+        pass
+        
+        # Initialize translator with error handling
+        try:
+            self.translator = Translator()
+        except Exception as e:
+            logger.warning("Translation service initialization failed. Translation features will be disabled.")
+            self.translator = None
+        
+        # Cache for optimization recommendations
+        self.recommendations_cache = {}
+
     def initialize_advanced_features(self):
         """Initialize features that require optional dependencies"""
         self.ml_capabilities = {

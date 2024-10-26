@@ -241,7 +241,7 @@ class StreamlitCropDiseaseAnalyzer:
 
 def main():
     # Configure the page with a dark theme and custom styles
-       st.set_page_config(
+        st.set_page_config(
         page_title="Your Title",
         page_icon=":shark:",
         layout="wide",

@@ -248,34 +248,34 @@ class StreamlitCropDiseaseAnalyzer:
         return f'<a href="data:file/unknown;base64,{b64}" download="{file_name}">Download {file_name}</a>'
 
     def search_youtube_videos(self, crop, max_results=6):
-       """
-    Search YouTube for videos related to the selected crop's farming practices.
-    Returns a list of dictionaries containing video information.
-    """
-    try:
-        # Create a focused search query for farming videos
-        search_query = f"{crop} farming cultivation techniques best practices"
-        s = Search(search_query)
-        
-        videos = []
-        for video in s.results[:max_results]:
-            # Extract video ID using regex
-            video_id = re.search(r'(?:v=|\/)([0-9A-Za-z_-]{11}).*', video.watch_url)
-            if video_id:
-                video_id = video_id.group(1)
-                videos.append({
-                    'title': video.title,
-                    'url': video.watch_url,
-                    'thumbnail': f"https://img.youtube.com/vi/{video_id}/mqdefault.jpg",
-                    'duration': str(timedelta(seconds=video.length)) if video.length else "N/A",
-                    'views': f"{video.views:,}" if video.views else "N/A",
-                    'embed_url': f"https://www.youtube.com/embed/{video_id}"
-                })
+        """
+        Search YouTube for videos related to the selected crop's farming practices.
+        Returns a list of dictionaries containing video information.
+        """
+        try:
+            # Create a focused search query for farming videos
+            search_query = f"{crop} farming cultivation techniques best practices"
+            s = Search(search_query)
             
-        return videos
-    except Exception as e:
-        st.error(f"Error searching YouTube videos: {str(e)}")
-        return []
+            videos = []
+            for video in s.results[:max_results]:
+                # Extract video ID using regex
+                video_id = re.search(r'(?:v=|\/)([0-9A-Za-z_-]{11}).*', video.watch_url)
+                if video_id:
+                    video_id = video_id.group(1)
+                    videos.append({
+                        'title': video.title,
+                        'url': video.watch_url,
+                        'thumbnail': f"https://img.youtube.com/vi/{video_id}/mqdefault.jpg",
+                        'duration': str(timedelta(seconds=video.length)) if video.length else "N/A",
+                        'views': f"{video.views:,}" if video.views else "N/A",
+                        'embed_url': f"https://www.youtube.com/embed/{video_id}"
+                    })
+                
+            return videos
+        except Exception as e:
+            st.error(f"Error searching YouTube videos: {str(e)}")
+            return []
 
 
 def main():

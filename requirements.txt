@@ -8,3 +8,4 @@ geolocator
 python-dotenv
 requests
 tensorflow
+opencv-python

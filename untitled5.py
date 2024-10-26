@@ -100,6 +100,7 @@ class StreamlitCropDiseaseAnalyzer:
         }
 
         self.translator = Translator()
+        self.IMAGE_DIR = "disease_images"
 
     def get_weather_data(self, location):
         """Fetch weather data from Visual Crossing API"""
@@ -294,7 +295,7 @@ class StreamlitCropDiseaseAnalyzer:
             st.write(f"Error searching YouTube videos: {str(e)}")  # Debug output
             return []
 
-self.IMAGE_DIR = "disease_images"
+
 
 def fetch_disease_images(self, disease_name, num_images=3):
         """Fetch disease images using Google Images Download package."""

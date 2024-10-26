@@ -296,7 +296,7 @@ class StreamlitCropDiseaseAnalyzer:
 
 self.IMAGE_DIR = "disease_images"
 
-    def fetch_disease_images(self, disease_name, num_images=3):
+def fetch_disease_images(self, disease_name, num_images=3):
         """Fetch disease images using Google Images Download package."""
         response = google_images_download.googleimagesdownload()
         arguments = {
@@ -313,7 +313,7 @@ self.IMAGE_DIR = "disease_images"
         image_files = paths[0].get(disease_name, [])
         return image_files
 
-    def display_disease_images(self, disease_name):
+def display_disease_images(self, disease_name):
         """Display disease images in Streamlit."""
         # Fetch images for the selected disease
         image_files = self.fetch_disease_images(disease_name)
@@ -325,7 +325,7 @@ self.IMAGE_DIR = "disease_images"
         else:
             st.write("No images found for this disease.")
 
-    def show_disease_info_with_images(self, crop):
+def show_disease_info_with_images(self, crop):
         """Show disease info and images in Streamlit based on selected crop."""
         disease_info = self.query_gemini_api(crop, "Hindi")  # Assuming Gemini API provides disease names
         disease_names = [d["name"] for d in disease_info]  # Example extraction; adjust as per actual API output

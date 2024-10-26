@@ -9,3 +9,4 @@ opencv-python  # Optional, for image processing
 scikit-learn  # Optional, for yield prediction
 plotly  # Optional, for interactive visualizations
 pytube
+google_images_download

@@ -237,6 +237,7 @@ class StreamlitCropDiseaseAnalyzer:
         b64 = base64.b64encode(file_bytes).decode()  # Convert to base64
         return f'<a href="data:file/unknown;base64,{b64}" download="{file_name}">Download {file_name}</a>'
 
+
 def main():
     # Configure the page with a custom theme and wide layout
     st.set_page_config(
@@ -246,51 +247,145 @@ def main():
         initial_sidebar_state="expanded"
     )
 
-    # Custom CSS for better styling
+    # Custom CSS for dark mode styling
     st.markdown("""
         <style>
-        .main {
-            padding: 2rem;
-            background-color: #f8f9fa;
+        /* Dark mode colors */
+        :root {
+            --bg-color: #1E1E1E;
+            --card-bg: #2D2D2D;
+            --hover-bg: #383838;
+            --text-color: #E0E0E0;
+            --border-color: #404040;
+            --shadow-color: rgba(0,0,0,0.3);
+            --accent-color: #4CAF50;
+            --gradient-start: #1a237e;
+            --gradient-end: #4CAF50;
         }
+
+        .main {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            padding: 2rem;
+        }
+
         .stButton>button {
             width: 100%;
             border-radius: 10px;
             height: 3em;
-            background-color: #ffffff;
-            border: 1px solid #e0e0e0;
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
             transition: all 0.3s ease;
         }
+
         .stButton>button:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            background-color: #f0f8ff;
+            box-shadow: 0 4px 6px var(--shadow-color);
+            background-color: var(--hover-bg);
         }
+
         .crop-card {
-            background-color: white;
+            background-color: var(--card-bg);
             padding: 1rem;
             border-radius: 10px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 4px var(--shadow-color);
             transition: all 0.3s ease;
+            border: 1px solid var(--border-color);
+            margin-bottom: 1rem;
         }
+
         .crop-card:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            box-shadow: 0 4px 8px var(--shadow-color);
+            background-color: var(--hover-bg);
         }
+
         .metric-card {
-            background-color: white;
+            background-color: var(--card-bg);
             padding: 1.5rem;
             border-radius: 10px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 4px var(--shadow-color);
             text-align: center;
+            border: 1px solid var(--border-color);
+            margin-bottom: 1rem;
         }
+
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px var(--shadow-color);
+        }
+
         .header-container {
             padding: 2rem 0;
             text-align: center;
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            background: linear-gradient(135deg, var(--gradient-start) 0%, var(--gradient-end) 100%);
             color: white;
             border-radius: 10px;
             margin-bottom: 2rem;
+            box-shadow: 0 4px 6px var(--shadow-color);
+        }
+
+        /* Override Streamlit's default dark mode styles */
+        .stTextInput>div>div>input {
+            background-color: var(--card-bg);
+            color: var(--text-color);
+            border-color: var(--border-color);
+        }
+
+        .stSelectbox>div>div>select {
+            background-color: var(--card-bg);
+            color: var(--text-color);
+            border-color: var(--border-color);
+        }
+
+        .stDateInput>div>div>input {
+            background-color: var(--card-bg);
+            color: var(--text-color);
+            border-color: var(--border-color);
+        }
+
+        /* Custom styles for expandable sections */
+        .streamlit-expanderHeader {
+            background-color: var(--card-bg);
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+        }
+
+        .streamlit-expanderContent {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 0 0 10px 10px;
+        }
+
+        /* Progress indicators */
+        .stage-indicator {
+            padding: 0.5rem;
+            border-radius: 5px;
+            text-align: center;
+            margin: 0.5rem 0;
+        }
+
+        .stage-complete {
+            background-color: rgba(76, 175, 80, 0.2);
+            border: 1px solid #4CAF50;
+        }
+
+        .stage-current {
+            background-color: rgba(33, 150, 243, 0.2);
+            border: 1px solid #2196F3;
+        }
+
+        .stage-pending {
+            background-color: rgba(158, 158, 158, 0.2);
+            border: 1px solid #9E9E9E;
+        }
+
+        /* Alert styling */
+        .stAlert {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
         }
         </style>
     """, unsafe_allow_html=True)
@@ -305,7 +400,7 @@ def main():
 
     analyzer = StreamlitCropDiseaseAnalyzer()
 
-    # Create a cleaner sidebar
+    # Sidebar with dark mode styling
     with st.sidebar:
         st.markdown("### 🔧 Settings")
         selected_language = st.selectbox(
@@ -335,17 +430,16 @@ def main():
             datetime.now() - timedelta(days=30)
         )
 
-    # Create a grid layout for crops with improved cards
-    st.markdown("### Select Your Crop")
-    col1, col2, col3, col4, col5 = st.columns(5)
-    cols = [col1, col2, col3, col4, col5]
+    # Crop selection grid
+    st.markdown("### 🌱 Select Your Crop")
+    cols = st.columns(5)
     selected_crop = None
 
     for idx, (crop, data) in enumerate(analyzer.CROPS.items()):
         with cols[idx % 5]:
             st.markdown(f"""
                 <div class='crop-card'>
-                    <h4 style='text-align: center;'>{crop}</h4>
+                    <h4 style='text-align: center; color: var(--text-color);'>{crop}</h4>
                 </div>
             """, unsafe_allow_html=True)
             if st.button("Select", key=f"crop_{idx}"):
@@ -354,34 +448,34 @@ def main():
 
     if selected_crop:
         st.markdown(f"""
-            <div style='background-color: white; padding: 2rem; border-radius: 10px; margin: 2rem 0;'>
-                <h2 style='text-align: center;'>Analysis for {selected_crop}</h2>
+            <div class='crop-card' style='margin: 2rem 0;'>
+                <h2 style='text-align: center; color: var(--text-color);'>Analysis for {selected_crop}</h2>
             </div>
         """, unsafe_allow_html=True)
 
-        # Weather data section with improved metrics
+        # Weather data section
         weather_data = analyzer.get_weather_data(location)
         if weather_data:
             st.markdown("### 🌤️ Current Weather Conditions")
             
-            col1, col2, col3, col4 = st.columns(4)
+            weather_cols = st.columns(4)
             metrics = [
-                ("🌡️ Temperature", f"{weather_data['temperature']}°C"),
-                ("💧 Humidity", f"{weather_data['humidity']}%"),
-                ("💨 Wind Speed", f"{weather_data['windSpeed']} km/h"),
-                ("🌧️ Precipitation", f"{weather_data['precipitation']} mm")
+                ("🌡️ Temperature", f"{weather_data['temperature']}°C", "#FF6B6B"),
+                ("💧 Humidity", f"{weather_data['humidity']}%", "#4ECDC4"),
+                ("💨 Wind Speed", f"{weather_data['windSpeed']} km/h", "#45B7D1"),
+                ("🌧️ Precipitation", f"{weather_data['precipitation']} mm", "#96CEB4")
             ]
             
-            for col, (label, value) in zip([col1, col2, col3, col4], metrics):
+            for col, (label, value, color) in zip(weather_cols, metrics):
                 with col:
                     st.markdown(f"""
-                        <div class='metric-card'>
-                            <h4>{label}</h4>
-                            <h2>{value}</h2>
+                        <div class='metric-card' style='border-left: 4px solid {color};'>
+                            <h4 style='color: var(--text-color);'>{label}</h4>
+                            <h2 style='color: {color};'>{value}</h2>
                         </div>
                     """, unsafe_allow_html=True)
 
-            # Weather alerts with improved styling
+            # Weather alerts
             if weather_data['humidity'] > 80:
                 st.warning("⚠️ High Humidity Alert: Monitor crops for potential disease risks")
             if weather_data['precipitation'] > 10:
@@ -393,7 +487,7 @@ def main():
             selected_crop
         )
         
-        st.markdown("### 🌱 Crop Growth Stage")
+        st.markdown("### 🌱 Growth Progress")
         stages = list(analyzer.CROPS[selected_crop]["stages"].keys())
         current_stage_idx = stages.index(growth_stage)
         
@@ -401,13 +495,25 @@ def main():
         for idx, (col, stage) in enumerate(zip(progress_cols, stages)):
             with col:
                 if idx < current_stage_idx:
-                    st.markdown(f"✅ {stage}")
+                    st.markdown(f"""
+                        <div class='stage-indicator stage-complete'>
+                            ✅ {stage}
+                        </div>
+                    """, unsafe_allow_html=True)
                 elif idx == current_stage_idx:
-                    st.markdown(f"🔄 **{stage}** (Current)")
+                    st.markdown(f"""
+                        <div class='stage-indicator stage-current'>
+                            🔄 <strong>{stage}</strong>
+                        </div>
+                    """, unsafe_allow_html=True)
                 else:
-                    st.markdown(f"⏳ {stage}")
+                    st.markdown(f"""
+                        <div class='stage-indicator stage-pending'>
+                            ⏳ {stage}
+                        </div>
+                    """, unsafe_allow_html=True)
 
-        # NPK recommendations with improved visualization
+        # NPK recommendations
         npk_req = analyzer.calculate_npk_requirements(
             selected_crop, 
             location, 
@@ -419,17 +525,17 @@ def main():
         npk_cols = st.columns(3)
         
         nutrients = [
-            ("Nitrogen (N)", npk_req['N'], "#28a745"),
-            ("Phosphorus (P)", npk_req['P'], "#17a2b8"),
-            ("Potassium (K)", npk_req['K'], "#ffc107")
+            ("Nitrogen (N)", npk_req['N'], "#4CAF50"),
+            ("Phosphorus (P)", npk_req['P'], "#2196F3"),
+            ("Potassium (K)", npk_req['K'], "#FFC107")
         ]
         
         for col, (nutrient, value, color) in zip(npk_cols, nutrients):
             with col:
                 st.markdown(f"""
-                    <div class='metric-card' style='border-left: 5px solid {color};'>
-                        <h4>{nutrient}</h4>
-                        <h2>{value:.1f} kg/acre</h2>
+                    <div class='metric-card' style='border-left: 4px solid {color};'>
+                        <h4 style='color: var(--text-color);'>{nutrient}</h4>
+                        <h2 style='color: {color};'>{value:.1f} kg/acre</h2>
                     </div>
                 """, unsafe_allow_html=True)
 
@@ -449,16 +555,18 @@ def main():
                 with st.spinner('Generating audio summary...'):
                     asyncio.run(analyzer.text_to_speech(analysis_text, audio_file, selected_language))
 
-                # Audio player with improved styling
+                # Audio player
                 st.markdown("### 🎧 Audio Summary")
                 with open(audio_file, 'rb') as audio_data:
                     st.audio(audio_data.read(), format='audio/mp3')
 
+                # Download button
                 st.download_button(
                     label="📥 Download Audio Summary",
                     data=open(audio_file, 'rb'),
                     file_name=audio_file,
-                    mime='audio/mp3'
+                    mime='audio/mp3',
+                    key='download-audio'
                 )
 
                 # Cleanup

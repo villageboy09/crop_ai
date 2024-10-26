@@ -386,7 +386,7 @@ def main():
         st.markdown('<h1 class="main-header">🌾 AI Kiosk Platform For Farmers</h1>', unsafe_allow_html=True)
 
     # Sidebar with improved organization
-    with st.sidebar:
+        with st.sidebar:
         st.markdown('<p class="sidebar-header">Configuration Settings</p>', unsafe_allow_html=True)
         
         # Language selection with custom styling
@@ -421,7 +421,7 @@ def main():
         )
 
     # Create an elegant crop selection grid
-    st.markdown('<h2 class="section-header">Select Your Crop</h2>', unsafe_allow_html=True)
+        st.markdown('<h2 class="section-header">Select Your Crop</h2>', unsafe_allow_html=True)
     
     crop_cols = st.columns(5)
     selected_crop = None

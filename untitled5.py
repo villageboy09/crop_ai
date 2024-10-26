@@ -247,44 +247,54 @@ class StreamlitCropDiseaseAnalyzer:
         b64 = base64.b64encode(file_bytes).decode()  # Convert to base64
         return f'<a href="data:file/unknown;base64,{b64}" download="{file_name}">Download {file_name}</a>'
 
-    def search_youtube_videos(self, crop, max_results=2):  # Fetching 2 videos
-        """
-        Search YouTube for videos related to the selected crop's farming practices.
-        Returns a list of dictionaries containing video information.
-        """
-        try:
-            # Create a focused search query for farming videos
-            search_query = f"{crop} farming cultivation techniques best practices"
-            s = Search(search_query)
-            
-            videos = []
-            for video in s.results[:max_results]:
+    def search_youtube_videos(self, crop, max_results=6):
+    try:
+        # Create a focused search query for farming videos
+        search_query = f"{crop} farming cultivation guide"
+        s = Search(search_query)
+        
+        videos = []
+        for video in s.results[:max_results]:
+            try:
                 # Extract video ID using regex
                 video_id = re.search(r'(?:v=|\/)([0-9A-Za-z_-]{11}).*', video.watch_url)
                 if video_id:
                     video_id = video_id.group(1)
                     
-                    # Use conditional checks to avoid NoneType issues
-                    duration = str(timedelta(seconds=video.length)) if video.length is not None else "N/A"
-                    views = f"{video.views:,}" if video.views is not None else "N/A"
+                    # Safely handle None values for length and views
+                    duration = "N/A"
+                    if video.length is not None:
+                        try:
+                            duration = str(timedelta(seconds=int(video.length)))
+                        except:
+                            duration = "N/A"
+                    
+                    views = "N/A"
+                    if video.views is not None:
+                        try:
+                            views = f"{int(video.views):,}"
+                        except:
+                            views = "N/A"
                     
                     videos.append({
-                        'title': video.title,
+                        'title': video.title or "Untitled",
                         'url': video.watch_url,
                         'thumbnail': f"https://img.youtube.com/vi/{video_id}/mqdefault.jpg",
                         'duration': duration,
                         'views': views,
                         'embed_url': f"https://www.youtube.com/embed/{video_id}"
                     })
-
-            if not videos:  # Check if no videos were found
-                st.warning("No videos found. Please check your internet connection or try again later.")
+            except Exception as e:
+                continue  # Skip videos that cause errors
             
-            return videos
-
-        except Exception as e:
-            st.error(f"Error searching YouTube videos: {str(e)}")
+        if not videos:
             return []
+            
+        return videos
+        
+    except Exception as e:
+        st.error(f"Error searching YouTube videos: {str(e)}")
+        return []
 
 
 def main():
@@ -654,8 +664,8 @@ def main():
                     pass
             else:
                 st.error(analysis_text)
-                st.markdown("### 📺 Educational Videos")
-    with st.spinner('Loading educational videos...'):
+                st.markdown("### 📺 Educational Farming Videos")
+    with st.spinner('Loading farming videos...'):
         videos = analyzer.search_youtube_videos(selected_crop)
         
         if videos:
@@ -667,20 +677,32 @@ def main():
                             <img src='{video["thumbnail"]}' class='video-thumbnail'>
                             <div class='video-title'>{video["title"][:60]}...</div>
                             <div class='video-stats'>
-                                👁️ {video["views"]} views | ⏱️ {video["duration"]}
+                                <span>Duration: {video["duration"]}</span><br>
+                                <span>Views: {video["views"]}</span>
                             </div>
                         </div>
                     """, unsafe_allow_html=True)
                     
                     # Embed video player
-                    st.components.v1.iframe(
-                        video["embed_url"],
-                        width=None,
-                        height=200,
-                        scrolling=False
-                    )
+                    try:
+                        st.components.v1.iframe(
+                            video["embed_url"],
+                            width=None,
+                            height=200,
+                            scrolling=False
+                        )
+                    except Exception as e:
+                        st.error(f"Error loading video player: {str(e)}")
         else:
-            st.info("No videos found. Please check your internet connection or try again later.")
+            st.warning("""
+                No videos found at the moment. 
+                This could be due to:
+                - Internet connectivity issues
+                - YouTube API limitations
+                - Temporary service unavailability
+                
+                Please try again in a few moments.
+            """)
 
 
 if __name__ == "__main__":

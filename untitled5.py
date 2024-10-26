@@ -170,7 +170,243 @@ def main():
     else:
         st.warning("⚠️ Weather data is currently unavailable. Please check your location and try again.")
 
+def calculate_growth_stage(self, sowing_date, crop):
+    """
+    Calculate the current growth stage based on sowing date and crop type.
+    
+    Args:
+        sowing_date (datetime): The date when the crop was sown
+        crop (str): The name of the crop
+        
+    Returns:
+        str: Current growth stage of the crop
+    """
+    if crop not in self.CROPS:
+        return "Unknown Stage"
+        
+    # Calculate days since sowing
+    days_since_sowing = (datetime.now() - sowing_date).days
+    
+    # Get the growth stages for the specific crop
+    stages = self.CROPS[crop]["stages"]
+    
+    # Calculate cumulative days for each stage
+    days_accumulated = 0
+    for stage, info in stages.items():
+        days_accumulated += info["duration"]
+        if days_since_sowing <= days_accumulated:
+            return stage
+            
+    # If beyond all stages, return the last stage
+    return list(stages.keys())[-1]
 
+def calculate_npk_requirements(self, crop, location, acres, growth_stage):
+    """
+    Calculate NPK requirements based on crop, location, area, and growth stage.
+    
+    Args:
+        crop (str): The name of the crop
+        location (str): Location string (city, state)
+        acres (float): Area in acres
+        growth_stage (str): Current growth stage of the crop
+        
+    Returns:
+        dict: NPK requirements in kg/acre
+    """
+    # Get base NPK requirements for the crop
+    if crop not in self.BASE_NPK_REQUIREMENTS:
+        return {"N": 0, "P": 0, "K": 0}
+    
+    base_npk = self.BASE_NPK_REQUIREMENTS[crop]
+    
+    # Determine region based on location
+    region = self._determine_region(location)
+    regional_multipliers = self.REGIONAL_NPK.get(region, {"N": 1.0, "P": 1.0, "K": 1.0})
+    
+    # Get stage-specific multiplier
+    stage_multiplier = self.CROPS[crop]["stages"].get(growth_stage, {}).get("npk_multiplier", 1.0)
+    
+    # Calculate final NPK requirements
+    npk_requirements = {
+        nutrient: base_amount * regional_multipliers[nutrient] * stage_multiplier * acres
+        for nutrient, base_amount in base_npk.items()
+    }
+    
+    return npk_requirements
+
+def _determine_region(self, location):
+    """
+    Determine the region based on location string.
+    
+    Args:
+        location (str): Location string (city, state)
+        
+    Returns:
+        str: Region (North, South, East, West, or Central)
+    """
+    # Dictionary of major cities and their regions
+    city_regions = {
+        'delhi': 'North',
+        'mumbai': 'West',
+        'kolkata': 'East',
+        'chennai': 'South',
+        'bangalore': 'South',
+        'hyderabad': 'South',
+        'ahmedabad': 'West',
+        'pune': 'West',
+        'jaipur': 'North',
+        'lucknow': 'North',
+        'bhopal': 'Central',
+        'patna': 'East'
+    }
+    
+    # Extract city from location string and convert to lowercase
+    city = location.split(',')[0].strip().lower()
+    
+    # Return the region for the city if found, otherwise return 'Central' as default
+    return city_regions.get(city, 'Central')
+
+def query_gemini_api(self, crop, language):
+    """
+    Query the Gemini API for crop disease analysis and translate the response.
+    
+    Args:
+        crop (str): The name of the crop
+        language (str): Target language for translation
+        
+    Returns:
+        str: Translated analysis text
+    """
+    try:
+        # Construct the prompt for disease analysis
+        prompt = f"""
+        Provide a comprehensive yet concise analysis of common diseases affecting {crop} crops, including:
+        1. Top 3 most common diseases
+        2. Early warning signs
+        3. Prevention measures
+        4. Basic treatment options
+        Format the response with clear headers and bullet points.
+        """
+        
+        # Prepare the API request
+        headers = {
+            "Content-Type": "application/json",
+        }
+        
+        data = {
+            "contents": [{
+                "parts": [{
+                    "text": prompt
+                }]
+            }],
+            "safety_settings": {
+                "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+                "threshold": "BLOCK_NONE"
+            }
+        }
+        
+        # Make the API request
+        url = f"{self.API_URL}?key={self.API_KEY}"
+        response = requests.post(url, headers=headers, json=data)
+        
+        if response.status_code != 200:
+            return f"Error: API request failed with status code {response.status_code}"
+            
+        # Parse the response
+        response_data = response.json()
+        analysis_text = response_data['candidates'][0]['content']['parts'][0]['text']
+        
+        # Translate if necessary
+        if language != "English":
+            analysis_text = self.translator.translate(
+                analysis_text, 
+                dest=self._get_language_code(language)
+            ).text
+            
+        return analysis_text
+        
+    except Exception as e:
+        return f"Error: Failed to generate analysis: {str(e)}"
+
+def _get_language_code(self, language):
+    """
+    Convert language name to ISO code for translation.
+    
+    Args:
+        language (str): Language name
+        
+    Returns:
+        str: ISO language code
+    """
+    language_codes = {
+        'Telugu': 'te',
+        'English': 'en',
+        'Hindi': 'hi'
+    }
+    return language_codes.get(language, 'en')
+
+async def text_to_speech(self, text, output_file, language):
+    """
+    Convert text to speech using edge-tts.
+    
+    Args:
+        text (str): Text to convert to speech
+        output_file (str): Output audio file path
+        language (str): Language for text-to-speech
+    """
+    try:
+        # Get the appropriate voice for the language
+        voice = self.VOICES.get(language, 'en-US-AriaNeural')
+        
+        # Initialize edge-tts communicate
+        tts = edge_tts.Communicate(text, voice)
+        
+        # Save audio to file
+        await tts.save(output_file)
+        
+    except Exception as e:
+        st.error(f"Error generating audio: {str(e)}")
+
+def get_binary_file_downloader_html(self, file_path, file_label):
+    """
+    Create an HTML download button for a binary file.
+    
+    Args:
+        file_path (str): Path to the file
+        file_label (str): Label for the download button
+        
+    Returns:
+        str: HTML for download button
+    """
+    try:
+        with open(file_path, 'rb') as f:
+            file_bytes = f.read()
+        
+        b64 = base64.b64encode(file_bytes).decode()
+        download_filename = os.path.basename(file_path)
+        
+        return f'''
+            <a href="data:application/octet-stream;base64,{b64}" 
+               download="{download_filename}" 
+               style="text-decoration: none;">
+                <button style="
+                    background-color: #4CAF50;
+                    border: none;
+                    color: white;
+                    padding: 12px 24px;
+                    text-align: center;
+                    text-decoration: none;
+                    display: inline-block;
+                    font-size: 16px;
+                    margin: 4px 2px;
+                    cursor: pointer;
+                    border-radius: 4px;">
+                    📥 Download {file_label}
+                </button>
+            </a>
+        '''
+    except Exception as e:
+        return f"Error creating download button: {str(e)}"
     # All other methods remain the same...
 
 def main():

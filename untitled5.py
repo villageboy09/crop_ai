@@ -379,188 +379,189 @@ def main():
         </style>
     """, unsafe_allow_html=True)
 
+# Initialize the analyzer
+analyzer = StreamlitCropDiseaseAnalyzer()
 
-        analyzer = StreamlitCropDiseaseAnalyzer()
+# Main header with gradient background
+st.markdown('<h1 class="main-header">🌾 AI Kiosk Platform For Farmers</h1>', unsafe_allow_html=True)
 
-    # Main header with gradient background
-        st.markdown('<h1 class="main-header">🌾 AI Kiosk Platform For Farmers</h1>', unsafe_allow_html=True)
+# Sidebar with improved organization
+with st.sidebar:
+    st.markdown('<p class="sidebar-header">Configuration Settings</p>', unsafe_allow_html=True)
 
-    # Sidebar with improved organization
-        with st.sidebar:
-             st.markdown('<p class="sidebar-header">Configuration Settings</p>', unsafe_allow_html=True)
-        
-        # Language selection with custom styling
-        selected_language = st.selectbox(
-            "🌐 Select Language",
-            list(analyzer.VOICES.keys()),
-            key="language_select"
-        )
-        
-        # Location input with validation
-        location = st.text_input(
-            "📍 Location (City, State)",
-            "Delhi, India",
-            help="Enter your current location"
-        )
-        
-        # Area input with improved UX
-        acres = st.number_input(
-            "🌱 Area (in acres)",
-            min_value=0.1,
-            value=1.0,
-            step=0.1,
-            format="%.1f",
-            help="Enter the size of your farming area"
-        )
-        
-        # Date selection with better formatting
-        sowing_date = st.date_input(
-            "📅 Sowing Date",
-            datetime.now() - timedelta(days=30),
-            help="Select the date when you sowed your crop"
-        )
-
-    # Create an elegant crop selection grid
-        st.markdown('<h2 class="section-header">Select Your Crop</h2>', unsafe_allow_html=True)
+    # Language selection with custom styling
+    selected_language = st.selectbox(
+        "🌐 Select Language",
+        list(analyzer.VOICES.keys()),
+        key="language_select"
+    )
     
-    crop_cols = st.columns(5)
-    selected_crop = None
+    # Location input with validation
+    location = st.text_input(
+        "📍 Location (City, State)",
+        "Delhi, India",
+        help="Enter your current location"
+    )
     
-    for idx, (crop, data) in enumerate(analyzer.CROPS.items()):
-        with crop_cols[idx % 5]:
-            st.markdown(f'<div class="crop-card">', unsafe_allow_html=True)
-            if st.button(
-                f"🌿 {crop}",
-                key=f"crop_{idx}",
-                use_container_width=True
-            ):
-                selected_crop = crop
-            st.image(data["image"], caption=crop, use_column_width=True)
+    # Area input with improved UX
+    acres = st.number_input(
+        "🌱 Area (in acres)",
+        min_value=0.1,
+        value=1.0,
+        step=0.1,
+        format="%.1f",
+        help="Enter the size of your farming area"
+    )
+    
+    # Date selection with better formatting
+    sowing_date = st.date_input(
+        "📅 Sowing Date",
+        datetime.now() - timedelta(days=30),
+        help="Select the date when you sowed your crop"
+    )
+
+# Create an elegant crop selection grid
+st.markdown('<h2 class="section-header">Select Your Crop</h2>', unsafe_allow_html=True)
+
+crop_cols = st.columns(5)
+selected_crop = None
+
+for idx, (crop, data) in enumerate(analyzer.CROPS.items()):
+    with crop_cols[idx % 5]:
+        st.markdown(f'<div class="crop-card">', unsafe_allow_html=True)
+        if st.button(
+            f"🌿 {crop}",
+            key=f"crop_{idx}",
+            use_container_width=True
+        ):
+            selected_crop = crop
+        st.image(data["image"], caption=crop, use_column_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+if selected_crop:
+    st.markdown(f'<h2 class="section-header">Analysis for {selected_crop}</h2>', unsafe_allow_html=True)
+
+    # Weather data display with improved visualization
+    weather_data = analyzer.get_weather_data(location)
+    if weather_data:
+        st.markdown('<h3 class="section-header">Current Weather Conditions</h3>', unsafe_allow_html=True)
+
+        # Create a more organized weather metrics display
+        weather_cols = st.columns(4)
+
+        # Primary metrics
+        with weather_cols[0]:
+            st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+            st.metric("🌡️ Temperature", f"{weather_data['temperature']}°C")
             st.markdown('</div>', unsafe_allow_html=True)
 
-    if selected_crop:
-        st.markdown(f'<h2 class="section-header">Analysis for {selected_crop}</h2>', unsafe_allow_html=True)
+        with weather_cols[1]:
+            st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+            st.metric("💧 Humidity", f"{weather_data['humidity']}%")
+            st.markdown('</div>', unsafe_allow_html=True)
 
-        # Weather data display with improved visualization
-        weather_data = analyzer.get_weather_data(location)
-        if weather_data:
-            st.markdown('<h3 class="section-header">Current Weather Conditions</h3>', unsafe_allow_html=True)
-            
-            # Create a more organized weather metrics display
-            weather_cols = st.columns(4)
-            
-            # Primary metrics
-            with weather_cols[0]:
-                st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-                st.metric("🌡️ Temperature", f"{weather_data['temperature']}°C")
-                st.markdown('</div>', unsafe_allow_html=True)
-                
-            with weather_cols[1]:
-                st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-                st.metric("💧 Humidity", f"{weather_data['humidity']}%")
-                st.markdown('</div>', unsafe_allow_html=True)
-                
-            with weather_cols[2]:
-                st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-                st.metric("🌪️ Wind Speed", f"{weather_data['windSpeed']} km/h")
-                st.markdown('</div>', unsafe_allow_html=True)
-                
-            with weather_cols[3]:
-                st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-                st.metric("🌧️ Precipitation", f"{weather_data['precipitation']} mm")
-                st.markdown('</div>', unsafe_allow_html=True)
+        with weather_cols[2]:
+            st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+            st.metric("🌪️ Wind Speed", f"{weather_data['windSpeed']} km/h")
+            st.markdown('</div>', unsafe_allow_html=True)
 
-            # Weather alerts with improved visibility
-            if weather_data['humidity'] > 80 or weather_data['precipitation'] > 10:
-                st.markdown('<div class="alert-section">', unsafe_allow_html=True)
-                if weather_data['humidity'] > 80:
-                    st.warning("⚠️ High Humidity Alert: Monitor crops for potential disease risk")
-                if weather_data['precipitation'] > 10:
-                    st.warning("⚠️ Rainfall Alert: Ensure proper drainage systems")
-                st.markdown('</div>', unsafe_allow_html=True)
+        with weather_cols[3]:
+            st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+            st.metric("🌧️ Precipitation", f"{weather_data['precipitation']} mm")
+            st.markdown('</div>', unsafe_allow_html=True)
 
-        # Growth stage and NPK requirements
-        growth_stage = analyzer.calculate_growth_stage(
-            datetime.combine(sowing_date, datetime.min.time()),
-            selected_crop
-        )
-        
-        # Display growth stage with custom styling
-        st.markdown(
-            f'<div class="metric-card"><h3>Current Growth Stage: {growth_stage}</h3></div>',
-            unsafe_allow_html=True
-        )
+        # Weather alerts with improved visibility
+        if weather_data['humidity'] > 80 or weather_data['precipitation'] > 10:
+            st.markdown('<div class="alert-section">', unsafe_allow_html=True)
+            if weather_data['humidity'] > 80:
+                st.warning("⚠️ High Humidity Alert: Monitor crops for potential disease risk")
+            if weather_data['precipitation'] > 10:
+                st.warning("⚠️ Rainfall Alert: Ensure proper drainage systems")
+            st.markdown('</div>', unsafe_allow_html=True)
 
-        # NPK requirements with enhanced visualization
-        npk_req = analyzer.calculate_npk_requirements(
-            selected_crop, 
-            location, 
-            acres,
+    # Growth stage and NPK requirements
+    growth_stage = analyzer.calculate_growth_stage(
+        datetime.combine(sowing_date, datetime.min.time()),
+        selected_crop
+    )
+
+    # Display growth stage with custom styling
+    st.markdown(
+        f'<div class="metric-card"><h3>Current Growth Stage: {growth_stage}</h3></div>',
+        unsafe_allow_html=True
+    )
+
+    # NPK requirements with enhanced visualization
+    npk_req = analyzer.calculate_npk_requirements(
+        selected_crop, 
+        location, 
+        acres,
+        growth_stage
+    )
+
+    st.markdown('<h3 class="section-header">Fertilizer Recommendations</h3>', unsafe_allow_html=True)
+    npk_cols = st.columns(3)
+
+    with npk_cols[0]:
+        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+        st.metric("Nitrogen (N)", f"{npk_req['N']:.1f} kg/acre")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with npk_cols[1]:
+        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+        st.metric("Phosphorus (P)", f"{npk_req['P']:.1f} kg/acre")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with npk_cols[2]:
+        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+        st.metric("Potassium (K)", f"{npk_req['K']:.1f} kg/acre")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    # Weather-based recommendations with improved presentation
+    if weather_data:
+        recommendations = analyzer.get_weather_based_recommendations(
+            weather_data,
+            selected_crop,
             growth_stage
         )
-        
-        st.markdown('<h3 class="section-header">Fertilizer Recommendations</h3>', unsafe_allow_html=True)
-        npk_cols = st.columns(3)
-        
-        with npk_cols[0]:
-            st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-            st.metric("Nitrogen (N)", f"{npk_req['N']:.1f} kg/acre")
-            st.markdown('</div>', unsafe_allow_html=True)
-            
-        with npk_cols[1]:
-            st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-            st.metric("Phosphorus (P)", f"{npk_req['P']:.1f} kg/acre")
-            st.markdown('</div>', unsafe_allow_html=True)
-            
-        with npk_cols[2]:
-            st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-            st.metric("Potassium (K)", f"{npk_req['K']:.1f} kg/acre")
-            st.markdown('</div>', unsafe_allow_html=True)
+        if recommendations:
+            st.markdown('<h3 class="section-header">Weather-based Recommendations</h3>', unsafe_allow_html=True)
+            for rec in recommendations:
+                st.markdown(f'<div class="recommendation-card">🌱 {rec}</div>', unsafe_allow_html=True)
 
-        # Weather-based recommendations with improved presentation
-        if weather_data:
-            recommendations = analyzer.get_weather_based_recommendations(
-                weather_data,
-                selected_crop,
-                growth_stage
+    # Disease analysis section with progress indication
+    with st.spinner('Analyzing crop diseases...'):
+        analysis_text = analyzer.query_gemini_api(selected_crop, selected_language)
+        
+        if "Error:" not in analysis_text:
+            st.markdown('<h3 class="section-header">Disease Analysis</h3>', unsafe_allow_html=True)
+            st.markdown(f'<div class="metric-card">{analysis_text}</div>', unsafe_allow_html=True)
+            
+            # Audio generation with progress indication
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            audio_file = f"crop_disease_analysis_{selected_crop.lower()}_{timestamp}.mp3"
+            
+            with st.spinner('Generating audio summary...'):
+                asyncio.run(analyzer.text_to_speech(analysis_text, audio_file, selected_language))
+            
+            # Audio player with download option
+            st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+            with open(audio_file, 'rb') as audio_data:
+                st.audio(audio_data.read(), format='audio/mp3')
+            st.markdown(
+                analyzer.get_binary_file_downloader_html(audio_file, 'Download Audio Summary'),
+                unsafe_allow_html=True
             )
-            if recommendations:
-                st.markdown('<h3 class="section-header">Weather-based Recommendations</h3>', unsafe_allow_html=True)
-                for rec in recommendations:
-                    st.markdown(f'<div class="recommendation-card">🌱 {rec}</div>', unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
 
-        # Disease analysis section with progress indication
-        with st.spinner('Analyzing crop diseases...'):
-            analysis_text = analyzer.query_gemini_api(selected_crop, selected_language)
-            
-            if "Error:" not in analysis_text:
-                st.markdown('<h3 class="section-header">Disease Analysis</h3>', unsafe_allow_html=True)
-                st.markdown(f'<div class="metric-card">{analysis_text}</div>', unsafe_allow_html=True)
-                
-                # Audio generation with progress indication
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                audio_file = f"crop_disease_analysis_{selected_crop.lower()}_{timestamp}.mp3"
-                
-                with st.spinner('Generating audio summary...'):
-                    asyncio.run(analyzer.text_to_speech(analysis_text, audio_file, selected_language))
-                
-                # Audio player with download option
-                st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-                with open(audio_file, 'rb') as audio_data:
-                    st.audio(audio_data.read(), format='audio/mp3')
-                st.markdown(
-                    analyzer.get_binary_file_downloader_html(audio_file, 'Download Audio Summary'),
-                    unsafe_allow_html=True
-                )
-                st.markdown('</div>', unsafe_allow_html=True)
-
-                # Cleanup
-                try:
-                    os.remove(audio_file)
-                except:
-                    pass
-            else:
-                st.error(analysis_text)
+            # Cleanup
+            try:
+                os.remove(audio_file)
+            except:
+                pass
+        else:
+            st.error(analysis_text)
 
 if __name__ == "__main__":
     main()
+

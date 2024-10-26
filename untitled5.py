@@ -9,6 +9,9 @@ from googletrans import Translator
 import json
 from PIL import Image
 import pandas as pd
+from pytube import Search
+import re
+
 
 class StreamlitCropDiseaseAnalyzer:
     def __init__(self):
@@ -87,6 +90,13 @@ class StreamlitCropDiseaseAnalyzer:
     "Cotton": {"N": 110, "P": 70, "K": 90},
     "Groundnut": {"N": 80, "P": 60, "K": 70}
             # ... other crops
+        }
+         self.VIDEO_CATEGORIES = {
+            "cultivation": "cultivation techniques",
+            "diseases": "disease management",
+            "harvesting": "harvesting methods",
+            "marketing": "marketing tips",
+            "organic": "organic farming"
         }
 
         self.translator = Translator()
@@ -236,6 +246,39 @@ class StreamlitCropDiseaseAnalyzer:
             file_bytes = f.read()
         b64 = base64.b64encode(file_bytes).decode()  # Convert to base64
         return f'<a href="data:file/unknown;base64,{b64}" download="{file_name}">Download {file_name}</a>'
+
+    def search_youtube_videos(self, crop, category, max_results=5):
+        """
+        Search YouTube for videos related to the selected crop and category.
+        Returns a list of dictionaries containing video information.
+        """
+        try:
+            search_query = f"{crop} farming {self.VIDEO_CATEGORIES[category]}"
+            s = Search(search_query)
+            
+            videos = []
+            for video in s.results[:max_results]:
+                # Extract video ID from URL
+                video_id = re.search(r'(?:v=|\/)([0-9A-Za-z_-]{11}).*', video.watch_url)
+                if video_id:
+                    video_id = video_id.group(1)
+                else:
+                    continue
+                    
+                videos.append({
+                    'title': video.title,
+                    'url': video.watch_url,
+                    'thumbnail': f"https://img.youtube.com/vi/{video_id}/mqdefault.jpg",
+                    'duration': video.length,
+                    'views': video.views,
+                    'embed_url': f"https://www.youtube.com/embed/{video_id}"
+                })
+            
+            return videos
+        except Exception as e:
+            st.error(f"Error searching YouTube videos: {str(e)}")
+            return []
+
 
 
 def main():
@@ -387,6 +430,34 @@ def main():
             border: 1px solid var(--border-color);
             color: var(--text-color);
         }
+        /* Add styles for video section */
+        .video-card {
+            background-color: var(--card-bg);
+            padding: 1rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px var(--shadow-color);
+            margin-bottom: 1rem;
+            border: 1px solid var(--border-color);
+        }
+        
+        .video-thumbnail {
+            width: 100%;
+            border-radius: 5px;
+            margin-bottom: 0.5rem;
+        }
+        
+        .video-title {
+            color: var(--text-color);
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+        
+        .video-stats {
+            color: var(--text-color);
+            opacity: 0.8;
+            font-size: 0.9rem;
+        }
+
         </style>
     """, unsafe_allow_html=True)
 
@@ -452,6 +523,7 @@ def main():
                 <h2 style='text-align: center; color: var(--text-color);'>Analysis for {selected_crop}</h2>
             </div>
         """, unsafe_allow_html=True)
+        
 
         # Weather data section
         weather_data = analyzer.get_weather_data(location)
@@ -576,6 +648,42 @@ def main():
                     pass
             else:
                 st.error(analysis_text)
+                st.markdown("### 📺 Educational Videos")
+        
+        # Video category selection
+        video_category = st.selectbox(
+            "Select Video Category",
+            list(analyzer.VIDEO_CATEGORIES.keys()),
+            format_func=lambda x: x.title()
+        )
+        
+        # Search and display videos
+        with st.spinner('Searching for relevant videos...'):
+            videos = analyzer.search_youtube_videos(selected_crop, video_category)
+            
+            if videos:
+                video_cols = st.columns(3)
+                for idx, video in enumerate(videos):
+                    with video_cols[idx % 3]:
+                        st.markdown(f"""
+                            <div class='video-card'>
+                                <img src='{video["thumbnail"]}' class='video-thumbnail'>
+                                <div class='video-title'>{video["title"][:60]}...</div>
+                                <div class='video-stats'>
+                                    👁️ {video["views"]:,} views | ⏱️ {video["duration"]} seconds
+                                </div>
+                            </div>
+                        """, unsafe_allow_html=True)
+                        
+                        # Embed video player
+                        st.components.v1.iframe(
+                            video["embed_url"],
+                            width=None,
+                            height=200,
+                            scrolling=False
+                        )
+            else:
+                st.warning("No videos found for the selected category. Try a different category.")
 
 if __name__ == "__main__":
     main()

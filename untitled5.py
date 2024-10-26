@@ -117,17 +117,20 @@ class StreamlitCropDiseaseAnalyzer:
             st.error(f"Unexpected error getting weather data: {str(e)}")
             return None
 
-    def calculate_growth_stage(self, sowing_date, crop):
-        if crop not in self.CROPS:
-            return "Unknown Stage"
-        days_since_sowing = (datetime.now() - sowing_date).days
-        stages = self.CROPS[crop]["stages"]
-        days_accumulated = 0
-        for stage, info in stages.items():
-            days_accumulated += info["duration"]
-            if days_since_sowing <= days_accumulated:
-                return stage
-        return list(stages.keys())[-1]
+def calculate_growth_stage(self, sowing_date, crop):
+    if crop not in self.CROPS:
+        return "Unknown Stage"
+    # Convert sowing_date to datetime.datetime
+    sowing_datetime = datetime.combine(sowing_date, datetime.min.time())
+    days_since_sowing = (datetime.now() - sowing_datetime).days
+    stages = self.CROPS[crop]["stages"]
+    days_accumulated = 0
+    for stage, info in stages.items():
+        days_accumulated += info["duration"]
+        if days_since_sowing <= days_accumulated:
+            return stage
+    return list(stages.keys())[-1]
+
 
     def calculate_npk_requirements(self, crop, location, acres, growth_stage):
         if crop not in self.BASE_NPK_REQUIREMENTS:

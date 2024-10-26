@@ -241,23 +241,33 @@ class StreamlitCropDiseaseAnalyzer:
 
 def main():
     # Configure the page with a dark theme and custom styles
-    st.set_page_config(
+        st.set_page_config(
         page_title="AI Kiosk Platform For Farmers",
         page_icon="🌾",
         layout="wide"
     )
 
-    # Custom CSS for better styling
+    # Updated CSS with better text contrast and visibility
     st.markdown("""
         <style>
+        /* Base theme colors and text visibility */
         .stApp {
-            background: linear-gradient(180deg, #f0f2f6 0%, #ffffff 100%);
+            background: #f0f2f6;
+            color: #1a1a1a;
         }
+        
+        /* Main header styling */
         .main-header {
             text-align: center;
             padding: 2rem 0;
             color: #1f4d7a;
+            font-weight: bold;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 10px;
+            margin-bottom: 2rem;
         }
+        
+        /* Card styling with improved contrast */
         .crop-card {
             background: white;
             padding: 1rem;
@@ -265,38 +275,110 @@ def main():
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             text-align: center;
             transition: transform 0.2s;
+            color: #1a1a1a;
+            margin-bottom: 1rem;
         }
+        
         .crop-card:hover {
             transform: translateY(-5px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
         }
+        
+        /* Metric card styling */
         .metric-card {
             background: white;
             padding: 1.5rem;
             border-radius: 10px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             margin: 0.5rem 0;
+            color: #1a1a1a;
         }
+        
+        /* Section headers with better visibility */
         .section-header {
             color: #1f4d7a;
             margin: 2rem 0 1rem 0;
             padding-bottom: 0.5rem;
-            border-bottom: 2px solid #e6e6e6;
+            border-bottom: 2px solid #1f4d7a;
+            font-weight: bold;
+            background: white;
+            padding: 1rem;
+            border-radius: 10px 10px 0 0;
         }
+        
+        /* Sidebar styling */
         .sidebar-header {
             font-size: 1.2rem;
             font-weight: bold;
             margin-bottom: 1rem;
             color: #1f4d7a;
+            background: white;
+            padding: 1rem;
+            border-radius: 5px;
         }
+        
+        /* Recommendation card styling */
         .recommendation-card {
-            background: #f8f9fa;
+            background: white;
             padding: 1rem;
             border-left: 4px solid #1f4d7a;
             margin: 0.5rem 0;
             border-radius: 0 5px 5px 0;
+            color: #1a1a1a;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        /* Alert section styling */
+        .alert-section {
+            background: white;
+            padding: 1rem;
+            border-radius: 10px;
+            margin: 1rem 0;
+        }
+        
+        /* Override Streamlit's default text colors */
+        .stMarkdown, .stText {
+            color: #1a1a1a !important;
+        }
+        
+        /* Improve button visibility */
+        .stButton > button {
+            background-color: #1f4d7a;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        
+        .stButton > button:hover {
+            background-color: #2c6ca3;
+        }
+        
+        /* Metric value colors */
+        .stMetric .metric-value {
+            color: #1f4d7a !important;
+            font-weight: bold;
+        }
+        
+        /* Make all text inputs and selects more visible */
+        .stTextInput > div > div > input,
+        .stSelectbox > div > div > select {
+            color: #1a1a1a !important;
+            background-color: white !important;
+        }
+        
+        /* Ensure warning messages are visible */
+        .stAlert {
+            background-color: #fff3cd;
+            color: #856404;
+            padding: 1rem;
+            border-radius: 5px;
+            border-left: 4px solid #ffeeba;
         }
         </style>
     """, unsafe_allow_html=True)
+
 
     analyzer = StreamlitCropDiseaseAnalyzer()
 

@@ -41,9 +41,8 @@ class ModelManager:
 
 class SmartFarmingAssistant:
     def __init__(self):
-        # Initialize with basic functionality
+        # Initialize basic components
         self.initialize_basic_components()
-        
         # Attempt to initialize advanced features
         self.initialize_advanced_features()
         
@@ -53,7 +52,7 @@ class SmartFarmingAssistant:
         try:
             self.WEATHER_API_KEY = st.secrets["visual_crossing"]["api_key"]
             self.GEMINI_API_KEY = st.secrets["gemini"]["api_key"]
-        except Exception as e:
+        except KeyError:
             logger.warning("API keys not found in secrets. Some features will be disabled.")
             self.WEATHER_API_KEY = None
             self.GEMINI_API_KEY = None
@@ -73,7 +72,7 @@ class SmartFarmingAssistant:
         # Initialize translator with error handling
         try:
             self.translator = Translator()
-        except Exception as e:
+        except Exception:
             logger.warning("Translation service initialization failed. Translation features will be disabled.")
             self.translator = None
         
@@ -84,16 +83,6 @@ class SmartFarmingAssistant:
         """Placeholder for crop database initialization"""
         # Add your database initialization code here if necessary
         pass
-        
-        # Initialize translator with error handling
-        try:
-            self.translator = Translator()
-        except Exception as e:
-            logger.warning("Translation service initialization failed. Translation features will be disabled.")
-            self.translator = None
-        
-        # Cache for optimization recommendations
-        self.recommendations_cache = {}
 
     def initialize_advanced_features(self):
         """Initialize features that require optional dependencies"""
@@ -161,6 +150,11 @@ class SmartFarmingAssistant:
                 'status': 'error',
                 'message': f"Error processing image: {str(e)}"
             }
+
+    def process_disease_prediction(self, prediction):
+        """Process disease prediction result"""
+        # Assuming a specific format for disease prediction results for example purposes
+        return {"disease_name": "Example Disease", "confidence": 0.95}
 
     def get_weather_forecast(self, location):
         """Enhanced weather forecast fetching with error handling"""

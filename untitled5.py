@@ -95,48 +95,80 @@ class StreamlitCropDiseaseAnalyzer:
 
         self.translator = Translator()
 
-def get_weather_data(self, location):
-    """
-    Fetches current weather data for a given location using Visual Crossing Weather API
+ def get_weather_data(self, location):
+        """
+        Fetches current weather data for a given location using Visual Crossing Weather API
+        """
+        try:
+            # Format the location string for the URL
+            formatted_location = location.replace(" ", "%20")
+            
+            # Construct the API URL
+            url = f"https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/{formatted_location}/today?unitGroup=metric&key={self.WEATHER_API_KEY}&contentType=json"
+            
+            # Make the API request
+            response = requests.get(url)
+            
+            # Check if request was successful
+            if response.status_code != 200:
+                st.error(f"Weather API returned status code: {response.status_code}")
+                return None
+            
+            # Parse the JSON response
+            data = response.json()
+            
+            # Extract current conditions from the first day
+            current_conditions = data.get('days', [{}])[0]
+            
+            # Return formatted weather data
+            return {
+                'temperature': round(current_conditions.get('temp', 0), 1),
+                'humidity': round(current_conditions.get('humidity', 0), 1),
+                'windSpeed': round(current_conditions.get('windspeed', 0), 1),
+                'precipitation': round(current_conditions.get('precip', 0), 2)
+            }
+            
+        except requests.RequestException as e:
+            st.error(f"Error fetching weather data: {str(e)}")
+            return None
+        except (KeyError, IndexError, ValueError) as e:
+            st.error(f"Error parsing weather data: {str(e)}")
+            return None
+        except Exception as e:
+            st.error(f"Unexpected error getting weather data: {str(e)}")
+            return None
+
+def main():
+    # ... previous code ...
     
-    Args:
-        location (str): Location string (e.g., "Delhi, India")
+    analyzer = StreamlitCropDiseaseAnalyzer()
+    
+    # Sidebar configuration
+    with st.sidebar:
+        st.markdown("### 📊 Configuration")
+        selected_language = st.selectbox("Select Language", list(analyzer.VOICES.keys()))
         
-    Returns:
-        dict: Weather data including temperature, humidity, wind speed, and precipitation
-              Returns None if the API request fails
-    """
-    try:
-        # Format the location string for the URL
-        formatted_location = location.replace(" ", "%20")
+        st.markdown("### 📍 Location Details")
+        location = st.text_input("Enter your location (City, State)", "Delhi, India")
+        acres = st.number_input("Enter area in acres", min_value=0.1, value=1.0, step=0.1)
+    
+    # Get weather data with proper error handling
+    weather_data = analyzer.get_weather_data(location)
+    
+    if weather_data:
+        st.markdown("### ☁️ Current Weather Conditions")
+        cols = st.columns(4)
         
-        # Construct the API URL
-        url = f"https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/{formatted_location}/today?unitGroup=metric&key={self.WEATHER_API_KEY}&contentType=json"
-        
-        # Make the API request
-        response = requests.get(url)
-        response.raise_for_status()  # Raise an exception for bad status codes
-        
-        # Parse the JSON response
-        data = response.json()
-        
-        # Extract current conditions from the first day
-        current_conditions = data.get('days', [{}])[0]
-        
-        # Return formatted weather data
-        return {
-            'temperature': round(current_conditions.get('temp', 0), 1),
-            'humidity': round(current_conditions.get('humidity', 0), 1),
-            'windSpeed': round(current_conditions.get('windspeed', 0), 1),
-            'precipitation': round(current_conditions.get('precip', 0), 2)
-        }
-        
-    except requests.RequestException as e:
-        st.error(f"Error fetching weather data: {str(e)}")
-        return None
-    except (KeyError, IndexError, ValueError) as e:
-        st.error(f"Error parsing weather data: {str(e)}")
-        return None
+        with cols[0]:
+            st.metric("Temperature", f"{weather_data['temperature']}°C")
+        with cols[1]:
+            st.metric("Humidity", f"{weather_data['humidity']}%")
+        with cols[2]:
+            st.metric("Wind Speed", f"{weather_data['windSpeed']} km/h")
+        with cols[3]:
+            st.metric("Precipitation", f"{weather_data['precipitation']} mm")
+    else:
+        st.warning("⚠️ Weather data is currently unavailable. Please check your location and try again.")
 
 
     # All other methods remain the same...

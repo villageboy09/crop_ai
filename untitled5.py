@@ -95,7 +95,7 @@ class StreamlitCropDiseaseAnalyzer:
 
         self.translator = Translator()
 
- def get_weather_data(self, location):
+    def get_weather_data(self, location):
         """
         Fetches current weather data for a given location using Visual Crossing Weather API
         """

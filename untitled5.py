@@ -247,6 +247,10 @@ class StreamlitCropDiseaseAnalyzer:
         b64 = base64.b64encode(file_bytes).decode()  # Convert to base64
         return f'<a href="data:file/unknown;base64,{b64}" download="{file_name}">Download {file_name}</a>'
 def search_youtube_videos(self, crop, max_results=6):
+    """Search for YouTube videos related to the selected crop."""
+    if not crop:
+        return []
+        
     try:
         print(f"Searching for videos related to: {crop}")
         search_query = f"{crop} farming cultivation guide"
@@ -255,23 +259,21 @@ def search_youtube_videos(self, crop, max_results=6):
         videos = []
         for video in s.results[:max_results]:
             try:
-                print(f"Processing video: {video.title}")
                 video_id = re.search(r'(?:v=|\/)([0-9A-Za-z_-]{11}).*', video.watch_url)
                 if video_id:
                     video_id = video_id.group(1)
-                    duration = "N/A"
-                    if video.length is not None:
-                        try:
-                            duration = str(timedelta(seconds=int(video.length)))
-                        except:
-                            duration = "N/A"
+                    
+                    # Safe conversion of duration
+                    try:
+                        duration = str(timedelta(seconds=int(video.length))) if video.length else "N/A"
+                    except:
+                        duration = "N/A"
 
-                    views = "N/A"
-                    if video.views is not None:
-                        try:
-                            views = f"{int(video.views):,}"
-                        except:
-                            views = "N/A"
+                    # Safe conversion of views
+                    try:
+                        views = f"{int(video.views):,}" if video.views else "N/A"
+                    except:
+                        views = "N/A"
 
                     videos.append({
                         'title': video.title or "Untitled",
@@ -285,14 +287,10 @@ def search_youtube_videos(self, crop, max_results=6):
                 print(f"Error processing video: {str(e)}")
                 continue
 
-        if not videos:
-            print("No videos found.")
-            return []
-
         return videos
 
     except Exception as e:
-        st.error(f"Error searching YouTube videos: {str(e)}")
+        print(f"Error searching YouTube videos: {str(e)}")
         return []
 
 def main():
@@ -663,44 +661,39 @@ def main():
             else:
                 st.error(analysis_text)
                 st.markdown("### 📺 Educational Farming Videos")
-    with st.spinner('Loading farming videos...'):
-        videos = analyzer.search_youtube_videos(selected_crop)
-        
-        if videos:
-            video_cols = st.columns(3)
-            for idx, video in enumerate(videos):
-                with video_cols[idx % 3]:
-                    st.markdown(f"""
-                        <div class='video-card'>
-                            <img src='{video["thumbnail"]}' class='video-thumbnail'>
-                            <div class='video-title'>{video["title"][:60]}...</div>
-                            <div class='video-stats'>
-                                <span>Duration: {video["duration"]}</span><br>
-                                <span>Views: {video["views"]}</span>
-                            </div>
-                        </div>
-                    """, unsafe_allow_html=True)
-                    
-                    # Embed video player
-                    try:
-                        st.components.v1.iframe(
-                            video["embed_url"],
-                            width=None,
-                            height=200,
-                            scrolling=False
-                        )
-                    except Exception as e:
-                        st.error(f"Error loading video player: {str(e)}")
-        else:
-            st.warning("""
-                No videos found at the moment. 
-                This could be due to:
-                - Internet connectivity issues
-                - YouTube API limitations
-                - Temporary service unavailability
+        with st.spinner('Loading farming videos...'):
+            try:
+                videos = analyzer.search_youtube_videos(selected_crop)
                 
-                Please try again in a few moments.
-            """)
+                if videos:
+                    video_cols = st.columns(3)
+                    for idx, video in enumerate(videos):
+                        with video_cols[idx % 3]:
+                            st.markdown(f"""
+                                <div class='video-card'>
+                                    <img src='{video["thumbnail"]}' class='video-thumbnail'>
+                                    <div class='video-title'>{video["title"][:60]}...</div>
+                                    <div class='video-stats'>
+                                        <span>Duration: {video["duration"]}</span><br>
+                                        <span>Views: {video["views"]}</span>
+                                    </div>
+                                </div>
+                            """, unsafe_allow_html=True)
+                            
+                            try:
+                                st.components.v1.iframe(
+                                    video["embed_url"],
+                                    width=None,
+                                    height=200,
+                                    scrolling=False
+                                )
+                            except Exception as e:
+                                st.error(f"Error loading video player: {str(e)}")
+                else:
+                    st.info("No videos found for this crop. Try selecting a different crop or check your internet connection.")
+            except Exception as e:
+                st.error(f"Error loading videos: {str(e)}")
+                st.info("Unable to load farming videos at this time. Please try again later.")
 
 
 if __name__ == "__main__":

@@ -91,7 +91,7 @@ class StreamlitCropDiseaseAnalyzer:
     "Groundnut": {"N": 80, "P": 60, "K": 70}
             # ... other crops
         }
-         self.VIDEO_CATEGORIES = {
+        self.VIDEO_CATEGORIES = {
             "cultivation": "cultivation techniques",
             "diseases": "disease management",
             "harvesting": "harvesting methods",

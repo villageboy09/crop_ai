@@ -248,7 +248,7 @@ def main():
     )
 
     # Updated CSS with better text contrast and visibility
-    st.markdown("""
+        st.markdown("""
         <style>
         /* Base theme colors and text visibility */
         .stApp {

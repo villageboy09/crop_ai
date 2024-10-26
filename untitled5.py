@@ -81,7 +81,6 @@ class SmartFarmingAssistant:
 
     def initialize_crop_database(self):
         """Placeholder for crop database initialization"""
-        # Add your database initialization code here if necessary
         pass
 
     def initialize_advanced_features(self):
@@ -153,7 +152,6 @@ class SmartFarmingAssistant:
 
     def process_disease_prediction(self, prediction):
         """Process disease prediction result"""
-        # Assuming a specific format for disease prediction results for example purposes
         return {"disease_name": "Example Disease", "confidence": 0.95}
 
     def get_weather_forecast(self, location):
@@ -207,10 +205,41 @@ def main():
                 st.write(f"- Weather API: {'✅' if capabilities['weather_api'] else '❌'}")
                 st.write(f"- Translation: {'✅' if capabilities['translation'] else '❌'}")
             
-            # Rest of the sidebar UI...
-            
-        # Main content with error handling for each tab...
+            # Additional sidebar UI can be added here...
+
+        # Main content section
+        st.title("Welcome to the Smart Farming Assistant")
         
+        st.subheader("Main Features")
+        st.write("""
+            This application provides several features to assist with smart farming:
+            - Disease Detection: Upload an image of your crop for disease analysis.
+            - Weather Forecast: Get weather updates based on your location.
+            - Translation Support: Switch between multiple languages.
+        """)
+
+        # Add sections for each available feature
+        if capabilities['ml_capabilities']['disease_detection']:
+            st.subheader("Disease Detection")
+            st.write("Upload an image to detect potential crop diseases.")
+            # Add file uploader here for disease detection
+        else:
+            st.info("Disease detection is not available on this system.")
+
+        if capabilities['weather_api']:
+            st.subheader("Weather Forecast")
+            st.write("Enter a location to retrieve the weather forecast.")
+            # Add a location input here for weather forecast
+        else:
+            st.info("Weather API key is missing or invalid.")
+
+        if capabilities['translation']:
+            st.subheader("Translation")
+            st.write("Translate text into supported languages.")
+            # Add text input and language selector for translation feature
+        else:
+            st.info("Translation service is not available.")
+
     except Exception as e:
         st.error(f"Application initialization error: {str(e)}")
         logger.error(f"Critical error: {str(e)}", exc_info=True)

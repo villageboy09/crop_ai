@@ -246,52 +246,53 @@ class StreamlitCropDiseaseAnalyzer:
             file_bytes = f.read()
         b64 = base64.b64encode(file_bytes).decode()  # Convert to base64
         return f'<a href="data:file/unknown;base64,{b64}" download="{file_name}">Download {file_name}</a>'
-def search_youtube_videos(self, crop, max_results=6):
-    """Search for YouTube videos related to the selected crop."""
-    if not crop:
-        return []
         
-    try:
-        print(f"Searching for videos related to: {crop}")
-        search_query = f"{crop} farming cultivation guide"
-        s = Search(search_query)
+    def search_youtube_videos(self, crop, max_results=6):
+        """Search for YouTube videos related to the selected crop."""
+        if not crop:
+            return []
+            
+        try:
+            st.write(f"Searching for videos related to: {crop}")  # Debug output
+            search_query = f"{crop} farming cultivation guide"
+            s = Search(search_query)
 
-        videos = []
-        for video in s.results[:max_results]:
-            try:
-                video_id = re.search(r'(?:v=|\/)([0-9A-Za-z_-]{11}).*', video.watch_url)
-                if video_id:
-                    video_id = video_id.group(1)
-                    
-                    # Safe conversion of duration
-                    try:
-                        duration = str(timedelta(seconds=int(video.length))) if video.length else "N/A"
-                    except:
-                        duration = "N/A"
+            videos = []
+            for video in s.results[:max_results]:
+                try:
+                    video_id = re.search(r'(?:v=|\/)([0-9A-Za-z_-]{11}).*', video.watch_url)
+                    if video_id:
+                        video_id = video_id.group(1)
+                        
+                        # Safe conversion of duration
+                        try:
+                            duration = str(timedelta(seconds=int(video.length))) if video.length else "N/A"
+                        except:
+                            duration = "N/A"
 
-                    # Safe conversion of views
-                    try:
-                        views = f"{int(video.views):,}" if video.views else "N/A"
-                    except:
-                        views = "N/A"
+                        # Safe conversion of views
+                        try:
+                            views = f"{int(video.views):,}" if video.views else "N/A"
+                        except:
+                            views = "N/A"
 
-                    videos.append({
-                        'title': video.title or "Untitled",
-                        'url': video.watch_url,
-                        'thumbnail': f"https://img.youtube.com/vi/{video_id}/mqdefault.jpg",
-                        'duration': duration,
-                        'views': views,
-                        'embed_url': f"https://www.youtube.com/embed/{video_id}"
-                    })
-            except Exception as e:
-                print(f"Error processing video: {str(e)}")
-                continue
+                        videos.append({
+                            'title': video.title or "Untitled",
+                            'url': video.watch_url,
+                            'thumbnail': f"https://img.youtube.com/vi/{video_id}/mqdefault.jpg",
+                            'duration': duration,
+                            'views': views,
+                            'embed_url': f"https://www.youtube.com/embed/{video_id}"
+                        })
+                except Exception as e:
+                    st.write(f"Error processing video: {str(e)}")  # Debug output
+                    continue
 
-        return videos
+            return videos
 
-    except Exception as e:
-        print(f"Error searching YouTube videos: {str(e)}")
-        return []
+        except Exception as e:
+            st.write(f"Error searching YouTube videos: {str(e)}")  # Debug output
+            return []
 
 def main():
     # Configure the page with a custom theme and wide layout

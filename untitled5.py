@@ -387,7 +387,7 @@ def main():
 
     # Sidebar with improved organization
         with st.sidebar:
-        st.markdown('<p class="sidebar-header">Configuration Settings</p>', unsafe_allow_html=True)
+             st.markdown('<p class="sidebar-header">Configuration Settings</p>', unsafe_allow_html=True)
         
         # Language selection with custom styling
         selected_language = st.selectbox(

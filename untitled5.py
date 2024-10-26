@@ -247,12 +247,12 @@ class StreamlitCropDiseaseAnalyzer:
         b64 = base64.b64encode(file_bytes).decode()  # Convert to base64
         return f'<a href="data:file/unknown;base64,{b64}" download="{file_name}">Download {file_name}</a>'
 
-    def search_youtube_videos(self, crop, max_results=6):
-        try:
+def search_youtube_videos(self, crop, max_results=6):
+    try:
         # Create a focused search query for farming videos
-             search_query = f"{crop} farming cultivation guide"
-             s = Search(search_query)
-        
+        search_query = f"{crop} farming cultivation guide"
+        s = Search(search_query)
+
         videos = []
         for video in s.results[:max_results]:
             try:
@@ -260,7 +260,7 @@ class StreamlitCropDiseaseAnalyzer:
                 video_id = re.search(r'(?:v=|\/)([0-9A-Za-z_-]{11}).*', video.watch_url)
                 if video_id:
                     video_id = video_id.group(1)
-                    
+
                     # Safely handle None values for length and views
                     duration = "N/A"
                     if video.length is not None:
@@ -268,14 +268,14 @@ class StreamlitCropDiseaseAnalyzer:
                             duration = str(timedelta(seconds=int(video.length)))
                         except:
                             duration = "N/A"
-                    
+
                     views = "N/A"
                     if video.views is not None:
                         try:
                             views = f"{int(video.views):,}"
                         except:
                             views = "N/A"
-                    
+
                     videos.append({
                         'title': video.title or "Untitled",
                         'url': video.watch_url,
@@ -286,12 +286,12 @@ class StreamlitCropDiseaseAnalyzer:
                     })
             except Exception as e:
                 continue  # Skip videos that cause errors
-            
+
         if not videos:
             return []
-        
+
         return videos
-        
+
     except Exception as e:
         st.error(f"Error searching YouTube videos: {str(e)}")
         return []

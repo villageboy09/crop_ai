@@ -96,20 +96,46 @@ class StreamlitCropDiseaseAnalyzer:
         self.translator = Translator()
 
 def get_weather_data(self, location):
-    url = f"https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/weatherdata/forecast?location={location}&key={self.WEATHER_API_KEY}&include=days"
+    """
+    Fetches current weather data for a given location using Visual Crossing Weather API
+    
+    Args:
+        location (str): Location string (e.g., "Delhi, India")
+        
+    Returns:
+        dict: Weather data including temperature, humidity, wind speed, and precipitation
+              Returns None if the API request fails
+    """
     try:
+        # Format the location string for the URL
+        formatted_location = location.replace(" ", "%20")
+        
+        # Construct the API URL
+        url = f"https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/{formatted_location}/today?unitGroup=metric&key={self.WEATHER_API_KEY}&contentType=json"
+        
+        # Make the API request
         response = requests.get(url)
-        response.raise_for_status()  # Raise an error for bad responses
+        response.raise_for_status()  # Raise an exception for bad status codes
+        
+        # Parse the JSON response
         data = response.json()
-        # Extract and return relevant weather data
+        
+        # Extract current conditions from the first day
+        current_conditions = data.get('days', [{}])[0]
+        
+        # Return formatted weather data
         return {
-            "temperature": data["currentConditions"]["temp"],
-            "humidity": data["currentConditions"]["humidity"],
-            "windSpeed": data["currentConditions"]["windspeed"],
-            "precipitation": data["currentConditions"]["precip"],
+            'temperature': round(current_conditions.get('temp', 0), 1),
+            'humidity': round(current_conditions.get('humidity', 0), 1),
+            'windSpeed': round(current_conditions.get('windspeed', 0), 1),
+            'precipitation': round(current_conditions.get('precip', 0), 2)
         }
-    except requests.exceptions.RequestException as e:
-        st.error(f"Error fetching weather data: {e}")
+        
+    except requests.RequestException as e:
+        st.error(f"Error fetching weather data: {str(e)}")
+        return None
+    except (KeyError, IndexError, ValueError) as e:
+        st.error(f"Error parsing weather data: {str(e)}")
         return None
 
 
